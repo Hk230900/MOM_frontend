@@ -20,7 +20,7 @@ async function fetchWithAuth(url, options = {}) {
     const refreshToken = localStorage.getItem('mom_refresh_token');
     if (refreshToken) {
       try {
-        const refreshUrl = process.env.NEXT_PUBLIC_URLTOKENREFRESH || 'http://localhost:8000/api/token/refresh/';
+        const refreshUrl = process.env.NEXT_PUBLIC_URLTOKENREFRESH;
         const refreshResponse = await fetch(refreshUrl, {
           method: 'POST',
           headers: {
@@ -91,7 +91,7 @@ export const api = {
     return res;
   },
   login: async (username, password) => {
-    const tokenUrl = process.env.NEXT_PUBLIC_URLTOKEN || 'http://localhost:8000/api/token/';
+    const tokenUrl = process.env.NEXT_PUBLIC_URLTOKEN;
     const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: {
