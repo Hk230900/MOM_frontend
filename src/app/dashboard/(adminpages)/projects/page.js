@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SidebarLayout from "@/components/SidebarLayout";
 import { api } from "@/lib/api";
-import { FolderKanban, Plus, Calendar, FileText, CheckCircle2, AlertCircle } from "lucide-react";
+import { FolderKanban, Plus, Calendar, FileText, CheckCircle2, AlertCircle, Pencil, Trash2, X } from "lucide-react";
 
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [editingProject, setEditingProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState("");
@@ -49,14 +50,28 @@ export default function ProjectsPage() {
 
     try {
       const projectsUrl = process.env.NEXT_PUBLIC_PROJECTS || 'http://localhost:8000/api/projects/';
-      const newProj = await api.post(projectsUrl, {
-        name: name.trim(),
-        description: description.trim() || "",
-      });
-      setProjects([newProj, ...projects]);
-      setName("");
-      setDescription("");
-      setSuccess(`Project "${newProj.name}" created successfully!`);
+      if (editingProject) {
+        // Edit mode
+        const updatedProj = await api.put(`${projectsUrl}${editingProject.id}/`, {
+          name: name.trim(),
+          description: description.trim() || "",
+        });
+        setProjects(projects.map(p => p.id === editingProject.id ? updatedProj : p));
+        setSuccess(`Project "${updatedProj.name}" updated successfully!`);
+        setEditingProject(null);
+        setName("");
+        setDescription("");
+      } else {
+        // Create mode
+        const newProj = await api.post(projectsUrl, {
+          name: name.trim(),
+          description: description.trim() || "",
+        });
+        setProjects([newProj, ...projects]);
+        setName("");
+        setDescription("");
+        setSuccess(`Project "${newProj.name}" created successfully!`);
+      }
       
       // Auto clear success message after 3 seconds
       setTimeout(() => setSuccess(""), 3500);
@@ -72,6 +87,51 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleStartEdit = (project) => {
+    setEditingProject(project);
+    setName(project.name);
+    setDescription(project.description || "");
+    setError("");
+    setSuccess("");
+    // Scroll to the top of the form for better mobile experience
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProject(null);
+    setName("");
+    setDescription("");
+    setError("");
+    setSuccess("");
+  };
+
+  const handleDelete = async (project) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the project "${project.name}"?\n\nWARNING: Deleting this project will automatically delete ALL meetings associated with it.`
+    );
+    if (!confirmDelete) return;
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const projectsUrl = process.env.NEXT_PUBLIC_PROJECTS || 'http://localhost:8000/api/projects/';
+      await api.delete(`${projectsUrl}${project.id}/`);
+      setProjects(projects.filter(p => p.id !== project.id));
+      setSuccess(`Project "${project.name}" deleted successfully!`);
+      
+      // If we were editing the project we just deleted, reset form
+      if (editingProject && editingProject.id === project.id) {
+        handleCancelEdit();
+      }
+
+      setTimeout(() => setSuccess(""), 3500);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to delete project. Make sure you are authorized.");
+    }
+  };
+
   return (
     <SidebarLayout>
       <div className="space-y-2">
@@ -80,11 +140,15 @@ export default function ProjectsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Side: Create Form */}
+        {/* Left Side: Form */}
         <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-xl shadow-xl backdrop-blur-sm">
           <h3 className="font-bold text-lg text-white mb-5 flex items-center space-x-2">
-            <Plus className="h-5 w-5 text-indigo-400" />
-            <span>Add New Project</span>
+            {editingProject ? (
+              <Pencil className="h-5 w-5 text-indigo-400" />
+            ) : (
+              <Plus className="h-5 w-5 text-indigo-400" />
+            )}
+            <span>{editingProject ? "Edit Project" : "Add New Project"}</span>
           </h3>
 
           {error && (
@@ -129,20 +193,32 @@ export default function ProjectsPage() {
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={submitLoading}
-              className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg shadow-lg shadow-indigo-500/25 active:transform active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm"
-            >
-              {submitLoading ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <span>Save Project</span>
+            <div className="flex gap-3">
+              {editingProject && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="flex-1 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-lg active:transform active:scale-[0.98] transition-all duration-200 text-sm flex items-center justify-center space-x-2"
+                >
+                  <X className="h-4 w-4" />
+                  <span>Cancel</span>
+                </button>
               )}
-            </button>
+              <button
+                type="submit"
+                disabled={submitLoading}
+                className="flex-[2] py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg shadow-lg shadow-indigo-500/25 active:transform active:scale-[0.98] transition-all duration-200 disabled:opacity-50 flex items-center justify-center space-x-2 text-sm"
+              >
+                {submitLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                    <span>{editingProject ? "Updating..." : "Creating..."}</span>
+                  </>
+                ) : (
+                  <span>{editingProject ? "Update Project" : "Save Project"}</span>
+                )}
+              </button>
+            </div>
           </form>
         </div>
 
@@ -172,12 +248,34 @@ export default function ProjectsPage() {
               {projects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-slate-900/40 border border-slate-800 p-5 rounded-xl hover:border-indigo-500/30 transition-all duration-200 flex flex-col justify-between"
+                  className={`bg-slate-900/40 border p-5 rounded-xl transition-all duration-200 flex flex-col justify-between ${
+                    editingProject && editingProject.id === project.id 
+                      ? "border-indigo-500 shadow-md shadow-indigo-500/10" 
+                      : "border-slate-800 hover:border-indigo-500/30"
+                  }`}
                 >
                   <div className="space-y-2">
-                    <h4 className="font-bold text-white text-base truncate" title={project.name}>
-                      {project.name}
-                    </h4>
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-bold text-white text-base truncate flex-1" title={project.name}>
+                        {project.name}
+                      </h4>
+                      <div className="flex items-center space-x-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleStartEdit(project)}
+                          title="Edit project"
+                          className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-850 rounded-lg transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(project)}
+                          title="Delete project"
+                          className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-850 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                     <p className="text-xs text-slate-400 line-clamp-3 min-h-[48px]">
                       {project.description || "No description provided."}
                     </p>
