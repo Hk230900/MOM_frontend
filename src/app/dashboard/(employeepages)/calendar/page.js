@@ -124,7 +124,10 @@ export default function CalendarPage() {
 
   const handleCellClick = (cellDate) => {
     // Navigate to new meeting with query param date
-    const dStr = cellDate.toISOString().split("T")[0];
+    const y = cellDate.getFullYear();
+    const m = String(cellDate.getMonth() + 1).padStart(2, '0');
+    const d = String(cellDate.getDate()).padStart(2, '0');
+    const dStr = `${y}-${m}-${d}`;
     router.push(`/dashboard/meetings/new?date=${dStr}`);
   };
 
@@ -192,7 +195,10 @@ export default function CalendarPage() {
         ) : (
           <div className="grid grid-cols-7 gap-2.5 min-h-[480px]">
             {calendarCells.map((cell, idx) => {
-              const formattedDate = cell.date.toISOString().split("T")[0];
+              const y = cell.date.getFullYear();
+              const m = String(cell.date.getMonth() + 1).padStart(2, '0');
+              const d = String(cell.date.getDate()).padStart(2, '0');
+              const formattedDate = `${y}-${m}-${d}`;
               const cellMeetings = meetingsByDate[formattedDate] || [];
               const isToday = new Date().toDateString() === cell.date.toDateString();
 
