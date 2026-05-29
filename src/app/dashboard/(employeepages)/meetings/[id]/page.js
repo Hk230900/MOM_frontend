@@ -366,6 +366,8 @@ ${actionsMarkdown}
     );
   }
 
+  const selectableUsers = users.filter(u => u.emailid !== 'harshadabk2309@gmail.com');
+
   return (
     <SidebarLayout>
       {/* Top Breadcrumb Header */}
@@ -646,7 +648,7 @@ ${actionsMarkdown}
                       className="flex-1 px-2.5 py-2 bg-slate-900 border border-slate-800 rounded-md text-white focus:outline-none focus:border-indigo-500 text-xs transition-all"
                     >
                       <option value="">Select...</option>
-                      {users.map((u) => (
+                      {selectableUsers.map((u) => (
                         <option key={u.user_id} value={u.user_id}>
                           {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}
                         </option>
@@ -732,7 +734,7 @@ ${actionsMarkdown}
                   <span>Attendees</span>
                 </label>
                 <div className="border border-slate-800 bg-slate-950/60 rounded-lg p-3 max-h-60 overflow-y-auto space-y-2.5">
-                  {users.map((u) => (
+                  {selectableUsers.map((u) => (
                     <label
                       key={u.user_id}
                       className="flex items-center space-x-3.5 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors"
