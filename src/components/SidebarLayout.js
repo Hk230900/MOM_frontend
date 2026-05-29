@@ -15,6 +15,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Calendar,
+  Handshake,
 } from "lucide-react";
 import { api } from "@/lib/api";
 
@@ -57,7 +59,9 @@ export default function SidebarLayout({ children }) {
   if (userRole === "Admin") {
     navItems.push(
       { name: "Dashboard", href: "/dashboard/admin", icon: Home },
+      { name: "Calendar", href: "/dashboard/calendar", icon: Calendar },
       { name: "Projects", href: "/dashboard/projects", icon: FolderKanban },
+      { name: "Clients", href: "/dashboard/clients", icon: Handshake },
       { name: "Meetings", href: "/dashboard/meetings", icon: FileText },
       { name: "New Meeting", href: "/dashboard/meetings/new", icon: PlusCircle },
       { name: "Users", href: "/dashboard/users", icon: Users }
@@ -65,6 +69,7 @@ export default function SidebarLayout({ children }) {
   } else {
     navItems.push(
       { name: "Dashboard", href: "/dashboard/employee", icon: Home },
+      { name: "Calendar", href: "/dashboard/calendar", icon: Calendar },
       { name: "Meetings", href: "/dashboard/meetings", icon: FileText },
       { name: "New Meeting", href: "/dashboard/meetings/new", icon: PlusCircle }
     );

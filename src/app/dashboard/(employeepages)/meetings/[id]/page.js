@@ -22,7 +22,10 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  ListTodo
+  ListTodo,
+  Handshake,
+  FolderKanban,
+  GitBranch
 } from "lucide-react";
 
 export default function MeetingDetailPage({ params }) {
@@ -32,6 +35,8 @@ export default function MeetingDetailPage({ params }) {
   // Data lists
   const [meeting, setMeeting] = useState(null);
   const [projects, setProjects] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [meetings, setMeetings] = useState([]);
   const [users, setUsers] = useState([]);
 
   // State modes
@@ -44,7 +49,9 @@ export default function MeetingDetailPage({ params }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Edit form states
+  const [meetingType, setMeetingType] = useState("Internal");
   const [projectId, setProjectId] = useState("");
+  const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -52,6 +59,7 @@ export default function MeetingDetailPage({ params }) {
   const [selectedAttendees, setSelectedAttendees] = useState([]);
   const [agenda, setAgenda] = useState("");
   const [minutes, setMinutes] = useState("");
+  const [followUpToId, setFollowUpToId] = useState("");
 
   // Action Items states (for both editing and toggling)
   const [actionItems, setActionItems] = useState([]);
@@ -69,22 +77,30 @@ export default function MeetingDetailPage({ params }) {
   const meetingsUrl = process.env.NEXT_PUBLIC_MEETINGS || 'http://localhost:8000/api/meetings/';
   const projectsUrl = process.env.NEXT_PUBLIC_PROJECTS || 'http://localhost:8000/api/projects/';
   const usersUrl = process.env.NEXT_PUBLIC_USERS || 'http://localhost:8000/api/users/';
+  const clientsUrl = process.env.NEXT_PUBLIC_CLIENTS || 'http://localhost:8000/api/clients/';
 
   async function loadMeetingDetails() {
     try {
       setError("");
-      const [meetingData, projectsData, usersData] = await Promise.all([
+      const [meetingData, projectsData, usersData, clientsData, allMeetingsData] = await Promise.all([
         api.get(`${meetingsUrl}${id}/`),
         api.get(projectsUrl),
         api.get(usersUrl),
+        api.get(clientsUrl),
+        api.get(meetingsUrl),
       ]);
 
       setMeeting(meetingData);
       setProjects(projectsData);
       setUsers(usersData);
+      setClients(clientsData);
+      // Filter out current meeting from all meetings list to prevent self follow-up
+      setMeetings(allMeetingsData.filter(m => m.id !== parseInt(id)));
 
       // Populate edit states
+      setMeetingType(meetingData.meeting_type || "Internal");
       setProjectId(meetingData.project?.id || "");
+      setClientId(meetingData.client?.id || "");
       setTitle(meetingData.title || "");
       setDate(meetingData.date || "");
 
@@ -102,6 +118,7 @@ export default function MeetingDetailPage({ params }) {
       setAgenda(meetingData.agenda || "");
       setMinutes(meetingData.minutes || "");
       setActionItemsSafe(meetingData.action_items);
+      setFollowUpToId(meetingData.follow_up_to?.id || "");
     } catch (err) {
       console.error(err);
       setError("Failed to retrieve meeting details from the backend server.");
@@ -171,7 +188,9 @@ export default function MeetingDetailPage({ params }) {
     }));
 
     const payload = {
-      project: parseInt(projectId),
+      meeting_type: meetingType,
+      project: meetingType === 'Internal' ? parseInt(projectId) : null,
+      client: meetingType === 'External' ? parseInt(clientId) : null,
       title: title.trim(),
       date,
       time: time.length === 5 ? `${time}:00` : time,
@@ -179,7 +198,8 @@ export default function MeetingDetailPage({ params }) {
       attendees: selectedAttendees.map(uid => parseInt(uid)),
       agenda: agenda.trim() || "",
       minutes: minutes.trim() || "",
-      action_items: formattedActionItems
+      action_items: formattedActionItems,
+      follow_up_to: followUpToId ? parseInt(followUpToId) : null
     };
 
     try {
@@ -196,8 +216,12 @@ export default function MeetingDetailPage({ params }) {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    if (!projectId) {
+    if (meetingType === "Internal" && !projectId) {
       setError("Please select a project category.");
+      return;
+    }
+    if (meetingType === "External" && !clientId) {
+      setError("Please select a client partner.");
       return;
     }
     if (!title.trim()) {
@@ -209,7 +233,6 @@ export default function MeetingDetailPage({ params }) {
     setError("");
     setSuccess("");
 
-    // Format action items
     const formattedActionItems = actionItems.map(({ id, text, assignee_id, assignee_name, completed }) => ({
       id,
       text,
@@ -219,7 +242,9 @@ export default function MeetingDetailPage({ params }) {
     }));
 
     const payload = {
-      project: parseInt(projectId),
+      meeting_type: meetingType,
+      project: meetingType === "Internal" ? parseInt(projectId) : null,
+      client: meetingType === "External" ? parseInt(clientId) : null,
       title: title.trim(),
       date,
       time: time.length === 5 ? `${time}:00` : time,
@@ -227,7 +252,8 @@ export default function MeetingDetailPage({ params }) {
       attendees: selectedAttendees.map(uid => parseInt(uid)),
       agenda: agenda.trim() || "",
       minutes: minutes.trim() || "",
-      action_items: formattedActionItems
+      action_items: formattedActionItems,
+      follow_up_to: followUpToId ? parseInt(followUpToId) : null
     };
 
     try {
@@ -236,6 +262,11 @@ export default function MeetingDetailPage({ params }) {
       setActionItemsSafe(updatedMeeting.action_items);
       setIsEditing(false);
       setSuccess("Meeting report updated successfully!");
+      
+      // Refresh options list
+      const allMeetingsData = await api.get(meetingsUrl);
+      setMeetings(allMeetingsData.filter(m => m.id !== parseInt(id)));
+
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
       console.error(err);
@@ -269,9 +300,15 @@ export default function MeetingDetailPage({ params }) {
       ? actionItems.map(item => `- [${item.completed ? "x" : " "}] ${item.text} (Assignee: ${item.assignee_name || "Unassigned"})`).join("\n")
       : "No action items assigned.";
 
+    const contextType = meeting.meeting_type === "External" ? "Client" : "Project Category";
+    const contextVal = meeting.meeting_type === "External" 
+      ? (meeting.client?.name || "None") 
+      : (meeting.project?.name || "Uncategorized");
+
     const mdString = `# Minutes of Meeting: ${meeting.title}
 
-**Project Category:** ${meeting.project?.name || "Uncategorized"}
+**Meeting Type:** ${meeting.meeting_type || "Internal"}
+**${contextType}:** ${contextVal}
 **Date:** ${meeting.date}
 **Time:** ${formatTime(meeting.time)}
 **Organizer:** ${meeting.organizer?.first_name || meeting.organizer?.username}
@@ -409,25 +446,80 @@ ${actionsMarkdown}
                 <span>Meeting Context & Minutes</span>
               </h3>
 
-              {/* Title & Project Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Project Category
-                  </label>
-                  <select
-                    value={projectId}
-                    onChange={(e) => setProjectId(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
-                    required
+              {/* Meeting Type Selection Toggle */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  Meeting Category / Type
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setMeetingType("Internal")}
+                    className={`py-2.5 px-4 rounded-xl border flex items-center justify-center space-x-2 font-bold text-xs transition-all duration-200 ${
+                      meetingType === "Internal"
+                        ? "bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5"
+                        : "bg-slate-950/20 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                    }`}
                   >
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
+                    <FolderKanban className="h-4 w-4" />
+                    <span>Internal Meeting</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMeetingType("External")}
+                    className={`py-2.5 px-4 rounded-xl border flex items-center justify-center space-x-2 font-bold text-xs transition-all duration-200 ${
+                      meetingType === "External"
+                        ? "bg-emerald-600/10 border-emerald-500 text-emerald-400 shadow-md shadow-emerald-500/5"
+                        : "bg-slate-950/20 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                    }`}
+                  >
+                    <Handshake className="h-4 w-4" />
+                    <span>External Meeting</span>
+                  </button>
                 </div>
+              </div>
+
+              {/* Title & Project/Client Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {meetingType === "Internal" ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      Project Category
+                    </label>
+                    <select
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
+                      required
+                    >
+                      <option value="">Select...</option>
+                      {projects.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                      Client Partner
+                    </label>
+                    <select
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-sm transition-all"
+                      required
+                    >
+                      <option value="">Select...</option>
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.company_name ? `(${c.company_name})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
@@ -472,6 +564,26 @@ ${actionsMarkdown}
                     required
                   />
                 </div>
+              </div>
+
+              {/* Follow-up Selector */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                  <GitBranch className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Follow-up To Previous Meeting (Optional)</span>
+                </label>
+                <select
+                  value={followUpToId}
+                  onChange={(e) => setFollowUpToId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
+                >
+                  <option value="">-- No Follow-up (Independent Meeting) --</option>
+                  {meetings.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.date} | {m.title} ({m.meeting_type})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Agenda */}
@@ -680,17 +792,36 @@ ${actionsMarkdown}
             {/* General Info Card */}
             <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-xl shadow-xl backdrop-blur-sm space-y-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-850 pb-4 gap-4">
-                <div className="flex items-center space-x-2.5">
-                  <span className="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded uppercase tracking-wider">
-                    {meeting.project?.name || "Uncategorized"}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded uppercase tracking-wider border ${
+                      meeting.meeting_type === "External"
+                        ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                        : "text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+                    }`}
+                  >
+                    {meeting.meeting_type || "Internal"} Meeting
                   </span>
-                  <span className="text-slate-500 text-sm">•</span>
-                  <span className="text-xs text-slate-400 font-medium flex items-center space-x-1">
+
+                  {meeting.meeting_type === "External" ? (
+                    <span className="flex items-center space-x-1.5 font-bold text-white bg-emerald-500/5 px-2.5 py-1 border border-emerald-500/10 rounded-md">
+                      <Handshake className="h-4 w-4 text-emerald-400" />
+                      <span>{meeting.client?.name || "Client Partner"}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center space-x-1.5 font-bold text-white bg-indigo-500/5 px-2.5 py-1 border border-indigo-500/10 rounded-md">
+                      <FolderKanban className="h-4 w-4 text-indigo-400" />
+                      <span>{meeting.project?.name || "Project Category"}</span>
+                    </span>
+                  )}
+
+                  <span className="text-slate-600 font-medium">•</span>
+                  <span className="flex items-center space-x-1">
                     <CalendarIcon className="h-3.5 w-3.5 text-indigo-400" />
                     <span>{meeting.date}</span>
                   </span>
-                  <span className="text-slate-500 text-sm">•</span>
-                  <span className="text-xs text-slate-400 font-medium flex items-center space-x-1">
+                  <span className="text-slate-600 font-medium">•</span>
+                  <span className="flex items-center space-x-1">
                     <Clock className="h-3.5 w-3.5 text-indigo-400" />
                     <span>{formatTime(meeting.time)}</span>
                   </span>
@@ -701,6 +832,37 @@ ${actionsMarkdown}
                 </div>
               </div>
 
+              {/* Client info details card if external */}
+              {meeting.meeting_type === "External" && meeting.client && (
+                <div className="bg-slate-950/30 p-4 border border-slate-850 rounded-lg space-y-2.5 text-xs">
+                  <h4 className="font-bold text-white uppercase tracking-wider text-[10px] text-slate-400 flex items-center space-x-1">
+                    <Handshake className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Client Partner Info</span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-slate-300">
+                    <div>
+                      <span className="text-slate-500 block">Contact Name</span>
+                      <strong className="text-white font-medium">{meeting.client.name}</strong>
+                    </div>
+                    {meeting.client.company_name && (
+                      <div>
+                        <span className="text-slate-500 block">Company</span>
+                        <strong className="text-white font-medium">{meeting.client.company_name}</strong>
+                      </div>
+                    )}
+                    {(meeting.client.email || meeting.client.phone) && (
+                      <div>
+                        <span className="text-slate-500 block">Contact Details</span>
+                        <span className="block font-medium">
+                          {meeting.client.email && <span className="block">{meeting.client.email}</span>}
+                          {meeting.client.phone && <span className="block text-indigo-400">{meeting.client.phone}</span>}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Agenda Section */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Agenda / Objective</h4>
@@ -709,7 +871,7 @@ ${actionsMarkdown}
                 </p>
               </div>
 
-              {/* Discussion & Detailed Minutes Section */}
+              {/* Discussion Notes Section */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Discussion Notes & Detailed Minutes</h4>
                 <div className="text-slate-200 text-sm leading-relaxed bg-slate-950/30 p-5 border border-slate-850 rounded-lg font-mono whitespace-pre-wrap min-h-[250px]">
@@ -767,8 +929,60 @@ ${actionsMarkdown}
             </div>
           </div>
 
-          {/* Right Side: Attendance panel */}
+          {/* Right Side: Attendance & Metadata */}
           <div className="space-y-6">
+            {/* Follow-up Card */}
+            <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-xl shadow-xl backdrop-blur-sm space-y-4">
+              <h3 className="font-bold text-base text-white border-b border-slate-850 pb-3 flex items-center space-x-2.5">
+                <GitBranch className="h-5 w-5 text-indigo-400" />
+                <span>Follow-up Actions</span>
+              </h3>
+
+              <div className="space-y-4 text-xs">
+                {meeting.follow_up_to ? (
+                  <div>
+                    <span className="text-slate-500 block mb-1">Follow-up to previous meeting:</span>
+                    <Link
+                      href={`/dashboard/meetings/${meeting.follow_up_to.id}`}
+                      className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline block truncate bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg"
+                    >
+                      {meeting.follow_up_to.title}
+                    </Link>
+                  </div>
+                ) : (
+                  <span className="text-slate-500 italic block">This is an independent base meeting.</span>
+                )}
+
+                {meeting.follow_ups && meeting.follow_ups.length > 0 && (
+                  <div className="space-y-2 border-t border-slate-850/60 pt-3">
+                    <span className="text-slate-500 block">Subsequent scheduled follow-ups:</span>
+                    <div className="space-y-1.5">
+                      {meeting.follow_ups.map((fu) => (
+                        <Link
+                          key={fu.id}
+                          href={`/dashboard/meetings/${fu.id}`}
+                          className="text-indigo-400 hover:text-indigo-300 font-semibold hover:underline block truncate bg-slate-950/40 border border-slate-850 px-2.5 py-2 rounded-lg"
+                        >
+                          {fu.date} | {fu.title}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2">
+                  <Link
+                    href={`/dashboard/meetings/new?follow_up_to=${meeting.id}`}
+                    className="w-full py-2.5 px-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 hover:border-indigo-500/30 font-semibold rounded-lg active:transform active:scale-[0.98] transition-all duration-200 text-xs flex items-center justify-center space-x-1.5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Schedule Follow-up Call/Meeting</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance Panel */}
             <div className="bg-slate-900/40 border border-slate-800 p-6 rounded-xl shadow-xl backdrop-blur-sm space-y-4">
               <h3 className="font-bold text-base text-white border-b border-slate-850 pb-3 flex items-center space-x-2.5">
                 <Users className="h-5 w-5 text-indigo-400" />
