@@ -4,16 +4,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SidebarLayout from "@/components/SidebarLayout";
 import { api } from "@/lib/api";
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  User, 
-  Users, 
-  FileText, 
-  Plus, 
-  Trash2, 
-  Save, 
-  AlertCircle, 
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  Users,
+  FileText,
+  Plus,
+  Trash2,
+  Save,
+  AlertCircle,
   ArrowLeft,
   CheckCircle2
 } from "lucide-react";
@@ -21,7 +21,7 @@ import Link from "next/link";
 
 export default function NewMeetingPage() {
   const router = useRouter();
-  
+
   // Data lists
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
@@ -36,7 +36,7 @@ export default function NewMeetingPage() {
   const [selectedAttendees, setSelectedAttendees] = useState([]);
   const [agenda, setAgenda] = useState("");
   const [minutes, setMinutes] = useState("");
-  
+
   // Action Items states
   const [actionItems, setActionItems] = useState([]);
   const [newActionText, setNewActionText] = useState("");
@@ -57,7 +57,7 @@ export default function NewMeetingPage() {
           api.get(projectsUrl),
           api.get(usersUrl),
         ]);
-        
+
         setProjects(projData);
         setUsers(userData);
 
@@ -74,12 +74,13 @@ export default function NewMeetingPage() {
 
         // Try to identify current logged in user to default organizer
         const loggedInUsername = api.getUsername();
-        const current = userData.find(u => u.username === loggedInUsername);
+        const current = userData.find(u => u.emailid === loggedInUsername);
+
         if (current) {
-          setCurrentUserId(current.id);
-          setOrganizerId(current.id);
+          setCurrentUserId(current.user_id);
+          setOrganizerId(current.user_id);
         } else if (userData.length > 0) {
-          setOrganizerId(userData[0].id);
+          setOrganizerId(userData[0].user_id);
         }
 
         if (projData.length > 0) {
@@ -108,12 +109,14 @@ export default function NewMeetingPage() {
 
   const addActionItem = () => {
     if (!newActionText.trim()) return;
-    
-    const assigneeUser = users.find(u => u.id === parseInt(newActionAssignee));
+
+    const assigneeUser = users.find(
+      u => u.user_id === parseInt(newActionAssignee)
+    );
     const newItem = {
       id: Date.now(), // Local key
       text: newActionText.trim(),
-      assignee_id: assigneeUser ? assigneeUser.id : null,
+      assignee_id: assigneeUser ? assigneeUser.user_id : null,
       assignee_name: assigneeUser ? (assigneeUser.first_name || assigneeUser.last_name ? `${assigneeUser.first_name || ""} ${assigneeUser.last_name || ""}`.trim() : (assigneeUser.emailid || assigneeUser.username)) : "Unassigned",
       completed: false
     };
@@ -168,7 +171,7 @@ export default function NewMeetingPage() {
       const meetingsUrl = process.env.NEXT_PUBLIC_MEETINGS || 'http://localhost:8000/api/meetings/';
       await api.post(meetingsUrl, meetingPayload);
       setSuccess("Meeting minutes saved successfully!");
-      
+
       setTimeout(() => {
         router.push("/dashboard/meetings");
       }, 1500);
@@ -375,7 +378,7 @@ export default function NewMeetingPage() {
                     >
                       <option value="">Select...</option>
                       {users.map((u) => (
-                        <option key={u.id} value={u.id}>
+                        <option key={u.user_id} value={u.user_id}>
                           {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}
                         </option>
                       ))}
@@ -445,7 +448,7 @@ export default function NewMeetingPage() {
                   required
                 >
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>
+                    <option key={u.user_id} value={u.user_id}>
                       {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")} ({u.emailid || u.username || "User"})
                     </option>
                   ))}
@@ -461,13 +464,13 @@ export default function NewMeetingPage() {
                 <div className="border border-slate-800 bg-slate-950/60 rounded-lg p-3 max-h-60 overflow-y-auto space-y-2.5">
                   {users.map((u) => (
                     <label
-                      key={u.id}
+                      key={u.user_id}
                       className="flex items-center space-x-3.5 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors"
                     >
                       <input
                         type="checkbox"
-                        checked={selectedAttendees.includes(u.id)}
-                        onChange={() => handleAttendeeToggle(u.id)}
+                        checked={selectedAttendees.includes(u.user_id)}
+                        onChange={() => handleAttendeeToggle(u.user_id)}
                         className="rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                       />
                       <span>{u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}</span>

@@ -6,20 +6,20 @@ import Link from "next/link";
 import SidebarLayout from "@/components/SidebarLayout";
 import { api } from "@/lib/api";
 import { formatTime } from "@/lib/utils";
-import { 
-  Calendar as CalendarIcon, 
-  Clock, 
-  User, 
-  Users, 
-  FileText, 
-  Plus, 
-  Trash2, 
-  Save, 
-  Edit2, 
-  X, 
-  Copy, 
-  Check, 
-  AlertCircle, 
+import {
+  Calendar as CalendarIcon,
+  Clock,
+  User,
+  Users,
+  FileText,
+  Plus,
+  Trash2,
+  Save,
+  Edit2,
+  X,
+  Copy,
+  Check,
+  AlertCircle,
   ArrowLeft,
   CheckCircle2,
   ListTodo
@@ -28,12 +28,12 @@ import {
 export default function MeetingDetailPage({ params }) {
   const router = useRouter();
   const { id } = use(params);
-  
+
   // Data lists
   const [meeting, setMeeting] = useState(null);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
-  
+
   // State modes
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export default function MeetingDetailPage({ params }) {
   const [selectedAttendees, setSelectedAttendees] = useState([]);
   const [agenda, setAgenda] = useState("");
   const [minutes, setMinutes] = useState("");
-  
+
   // Action Items states (for both editing and toggling)
   const [actionItems, setActionItems] = useState([]);
   const [newActionText, setNewActionText] = useState("");
@@ -78,7 +78,7 @@ export default function MeetingDetailPage({ params }) {
         api.get(projectsUrl),
         api.get(usersUrl),
       ]);
-      
+
       setMeeting(meetingData);
       setProjects(projectsData);
       setUsers(usersData);
@@ -87,13 +87,18 @@ export default function MeetingDetailPage({ params }) {
       setProjectId(meetingData.project?.id || "");
       setTitle(meetingData.title || "");
       setDate(meetingData.date || "");
-      
+
       // Ensure HH:MM format for HTML time input
       const formattedTime = meetingData.time ? meetingData.time.slice(0, 5) : "";
       setTime(formattedTime);
-      
+
       setOrganizerId(meetingData.organizer?.id || "");
-      setSelectedAttendees(meetingData.attendees ? meetingData.attendees.map(u => u.id) : []);
+
+      setSelectedAttendees(
+        meetingData.attendees
+          ? meetingData.attendees.map(u => u.id)
+          : []
+      );
       setAgenda(meetingData.agenda || "");
       setMinutes(meetingData.minutes || "");
       setActionItemsSafe(meetingData.action_items);
@@ -121,12 +126,14 @@ export default function MeetingDetailPage({ params }) {
 
   const addActionItem = () => {
     if (!newActionText.trim()) return;
-    
-    const assigneeUser = users.find(u => u.id === parseInt(newActionAssignee));
+
+    const assigneeUser = users.find(
+      u => u.user_id === parseInt(newActionAssignee)
+    );
     const newItem = {
       id: Date.now(), // Local key (temp)
       text: newActionText.trim(),
-      assignee_id: assigneeUser ? assigneeUser.id : null,
+      assignee_id: assigneeUser ? assigneeUser.user_id : null,
       assignee_name: assigneeUser ? (assigneeUser.first_name || assigneeUser.last_name ? `${assigneeUser.first_name || ""} ${assigneeUser.last_name || ""}`.trim() : (assigneeUser.emailid || assigneeUser.username)) : "Unassigned",
       completed: false
     };
@@ -151,7 +158,7 @@ export default function MeetingDetailPage({ params }) {
       }
       return item;
     });
-    
+
     setActionItems(updatedActions);
 
     // Format action items for payload
@@ -258,7 +265,7 @@ export default function MeetingDetailPage({ params }) {
     if (!meeting) return;
 
     const attendeeNames = meeting.attendees?.map(u => u.first_name || u.username).join(", ") || "None";
-    const actionsMarkdown = actionItems.length > 0 
+    const actionsMarkdown = actionItems.length > 0
       ? actionItems.map(item => `- [${item.completed ? "x" : " "}] ${item.text} (Assignee: ${item.assignee_name || "Unassigned"})`).join("\n")
       : "No action items assigned.";
 
@@ -528,7 +535,7 @@ ${actionsMarkdown}
                     >
                       <option value="">Select...</option>
                       {users.map((u) => (
-                        <option key={u.id} value={u.id}>
+                        <option key={u.user_id} value={u.user_id}>
                           {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}
                         </option>
                       ))}
@@ -599,7 +606,7 @@ ${actionsMarkdown}
                   required
                 >
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>
+                    <option key={u.user_id} value={u.user_id}>
                       {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")} ({u.emailid || u.username || "User"})
                     </option>
                   ))}
@@ -615,13 +622,13 @@ ${actionsMarkdown}
                 <div className="border border-slate-800 bg-slate-950/60 rounded-lg p-3 max-h-60 overflow-y-auto space-y-2.5">
                   {users.map((u) => (
                     <label
-                      key={u.id}
+                      key={u.user_id}
                       className="flex items-center space-x-3.5 cursor-pointer text-sm text-slate-300 hover:text-white transition-colors"
                     >
                       <input
                         type="checkbox"
-                        checked={selectedAttendees.includes(u.id)}
-                        onChange={() => handleAttendeeToggle(u.id)}
+                        checked={selectedAttendees.includes(u.user_id)}
+                        onChange={() => handleAttendeeToggle(u.user_id)}
                         className="rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
                       />
                       <span>{u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}</span>
@@ -717,16 +724,15 @@ ${actionsMarkdown}
                 <ListTodo className="h-5 w-5 text-indigo-400" />
                 <span>Action Items checklist ({actionItems.filter(i => i.completed).length}/{actionItems.length})</span>
               </h3>
-              
+
               <div className="space-y-2.5">
                 {actionItems.map((item) => (
                   <div
                     key={item.id}
-                    className={`flex items-start space-x-3.5 p-4 rounded-lg border transition-all ${
-                      item.completed 
-                        ? "bg-slate-950/20 border-slate-900 opacity-65 text-slate-400" 
-                        : "bg-slate-950/40 border-slate-850 text-white hover:border-slate-800"
-                    }`}
+                    className={`flex items-start space-x-3.5 p-4 rounded-lg border transition-all ${item.completed
+                      ? "bg-slate-950/20 border-slate-900 opacity-65 text-slate-400"
+                      : "bg-slate-950/40 border-slate-850 text-white hover:border-slate-800"
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -773,7 +779,7 @@ ${actionsMarkdown}
                 {meeting.attendees?.map((u) => {
                   const isOrganizer = u.id === meeting.organizer?.id;
                   return (
-                    <div 
+                    <div
                       key={u.id}
                       className="flex items-center space-x-3 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg hover:bg-slate-950/60 transition-colors"
                     >
