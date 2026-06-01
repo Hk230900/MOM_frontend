@@ -19,6 +19,7 @@ import {
   Handshake,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import NotificationBell from "./NotificationBell";
 
 export default function SidebarLayout({ children }) {
   const router = useRouter();
@@ -41,8 +42,60 @@ export default function SidebarLayout({ children }) {
       setUsername(api.getUsername());
       setUserRole(api.getUserRole());
       setLoading(false);
+      // Trigger Web Push subscription registration
+      subscribeToWebPush();
     }
   }, [router]);
+
+  const subscribeToWebPush = async () => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return;
+    }
+    try {
+      // 1. Register Service Worker
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      
+      // 2. Request Notification Permission
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        return;
+      }
+
+      // 3. Fetch VAPID public key
+      const vapidUrl = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidUrl) return;
+      
+      const { publicKey } = await api.get(vapidUrl);
+      if (!publicKey) return;
+
+      // 4. Convert Base64 VAPID public key to Uint8Array
+      const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
+      const base64 = (publicKey + padding).replace(/\-/g, "+").replace(/_/g, "/");
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      const applicationServerKey = outputArray;
+
+      // 5. Subscribe
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey
+        });
+      }
+
+      // 6. Send subscription to Django backend
+      const subscribeUrl = process.env.NEXT_PUBLIC_WEBPUSH_SUBSCRIBE;
+      if (subscribeUrl) {
+        await api.post(subscribeUrl, subscription);
+      }
+    } catch (err) {
+      console.warn("Push subscription registration failed:", err);
+    }
+  };
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -273,6 +326,7 @@ export default function SidebarLayout({ children }) {
             </h2>
           </div>
           <div className="flex items-center space-x-4">
+            <NotificationBell />
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs text-slate-400 font-medium">Logged in as</span>
               <span className="text-sm font-semibold text-indigo-400">{username}</span>
