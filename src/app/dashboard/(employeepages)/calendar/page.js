@@ -25,6 +25,7 @@ import {
 export default function CalendarPage() {
   const router = useRouter();
   const [meetings, setMeetings] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -39,8 +40,13 @@ export default function CalendarPage() {
   async function loadMeetings() {
     try {
       setLoading(true);
-      const data = await api.get(meetingsUrl);
-      setMeetings(data);
+      const usersUrl = process.env.NEXT_PUBLIC_USERS || 'http://localhost:8000/api/users/';
+      const [meetingsData, usersData] = await Promise.all([
+        api.get(meetingsUrl),
+        api.get(usersUrl),
+      ]);
+      setMeetings(meetingsData);
+      setUsers(usersData);
     } catch (err) {
       console.error(err);
       setError("Failed to load meetings list.");
@@ -102,8 +108,10 @@ export default function CalendarPage() {
 
   // Group meetings by date string 'YYYY-MM-DD'
   const loggedInUsername = api.getUsername();
-  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
-  const visibleMeetings = meetings.filter(m => isUserAdminAOrArchit || !m.project?.is_archit_related);
+  const isMasterAdmin = loggedInUsername === 'harshadabk2309@gmail.com';
+  const currentUser = users.find(u => u.emailid === loggedInUsername);
+  const userOrg = currentUser?.organization || 'iSyra';
+  const visibleMeetings = meetings.filter(m => isMasterAdmin || !m.project || m.project.organization === userOrg);
 
   const meetingsByDate = {};
   visibleMeetings.forEach(meeting => {

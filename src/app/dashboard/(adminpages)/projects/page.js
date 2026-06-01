@@ -9,9 +9,10 @@ import { FolderKanban, Plus, Calendar, FileText, CheckCircle2, AlertCircle, Penc
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [isArchitRelated, setIsArchitRelated] = useState(false);
+  const [organization, setOrganization] = useState("iSyra");
   const [editingProject, setEditingProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -21,11 +22,16 @@ export default function ProjectsPage() {
   async function loadProjects() {
     try {
       const projectsUrl = process.env.NEXT_PUBLIC_PROJECTS || 'http://localhost:8000/api/projects/';
-      const data = await api.get(projectsUrl);
-      setProjects(data);
+      const usersUrl = process.env.NEXT_PUBLIC_USERS || 'http://localhost:8000/api/users/';
+      const [projData, userData] = await Promise.all([
+        api.get(projectsUrl),
+        api.get(usersUrl)
+      ]);
+      setProjects(projData);
+      setUsers(userData);
     } catch (err) {
       console.error(err);
-      setError("Failed to fetch projects from backend.");
+      setError("Failed to fetch projects and users from backend.");
     } finally {
       setLoading(false);
     }
@@ -56,25 +62,25 @@ export default function ProjectsPage() {
         const updatedProj = await api.put(`${projectsUrl}${editingProject.id}/`, {
           name: name.trim(),
           description: description.trim() || "",
-          is_archit_related: isArchitRelated,
+          organization: organization,
         });
         setProjects(projects.map(p => p.id === editingProject.id ? updatedProj : p));
         setSuccess(`Project "${updatedProj.name}" updated successfully!`);
         setEditingProject(null);
         setName("");
         setDescription("");
-        setIsArchitRelated(false);
+        setOrganization("iSyra");
       } else {
         // Create mode
         const newProj = await api.post(projectsUrl, {
           name: name.trim(),
           description: description.trim() || "",
-          is_archit_related: isArchitRelated,
+          organization: organization,
         });
         setProjects([newProj, ...projects]);
         setName("");
         setDescription("");
-        setIsArchitRelated(false);
+        setOrganization("iSyra");
         setSuccess(`Project "${newProj.name}" created successfully!`);
       }
       
@@ -96,7 +102,7 @@ export default function ProjectsPage() {
     setEditingProject(project);
     setName(project.name);
     setDescription(project.description || "");
-    setIsArchitRelated(project.is_archit_related || false);
+    setOrganization(project.organization || "iSyra");
     setError("");
     setSuccess("");
     // Scroll to the top of the form for better mobile experience
@@ -107,7 +113,7 @@ export default function ProjectsPage() {
     setEditingProject(null);
     setName("");
     setDescription("");
-    setIsArchitRelated(false);
+    setOrganization("iSyra");
     setError("");
     setSuccess("");
   };
@@ -200,20 +206,21 @@ export default function ProjectsPage() {
               />
             </div>
 
-            <div className="flex items-center space-x-2 py-1">
-              <input
-                type="checkbox"
-                id="isArchitRelated"
-                checked={isArchitRelated}
-                onChange={(e) => setIsArchitRelated(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-800 bg-slate-950/60 text-indigo-600 focus:ring-indigo-550 focus:ring-offset-slate-900 focus:outline-none cursor-pointer"
-              />
-              <label htmlFor="isArchitRelated" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">
-                Is this project related to Archit Naik?
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Organization Scope
               </label>
+              <select
+                value={organization}
+                onChange={(e) => setOrganization(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all duration-200"
+              >
+                <option value="iSyra">iSyra (Us)</option>
+                <option value="Own">Own (Private)</option>
+              </select>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               {editingProject && (
                 <button
                   type="button"
@@ -245,8 +252,10 @@ export default function ProjectsPage() {
         {/* Right Side: Projects List */}
         {(() => {
           const currentUserEmail = api.getUsername();
-          const showAll = currentUserEmail === 'harshadabk2309@gmail.com' || currentUserEmail === 'architnaik161@gmail.com';
-          const filteredProjects = projects.filter(p => showAll || !p.is_archit_related);
+          const isMasterAdmin = currentUserEmail === 'harshadabk2309@gmail.com';
+          const currentUser = users.find(u => u.emailid === currentUserEmail);
+          const userOrg = currentUser?.organization || 'iSyra';
+          const filteredProjects = projects.filter(p => isMasterAdmin || p.organization === userOrg);
 
           return (
             <div className="lg:col-span-2 space-y-4">
@@ -282,15 +291,17 @@ export default function ProjectsPage() {
                     >
                       <div className="space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex flex-col space-y-1 overflow-hidden flex-1">
+                          <div className="flex flex-col space-y-1.5 overflow-hidden flex-1">
                             <h4 className="font-bold text-white text-base truncate" title={project.name}>
                               {project.name}
                             </h4>
-                            {project.is_archit_related && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
-                                Archit Naik Related
-                              </span>
-                            )}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border w-fit ${
+                              project.organization === 'Own'
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                            }`}>
+                              {project.organization === 'Own' ? 'Own (Private)' : 'iSyra (Us)'}
+                            </span>
                           </div>
                           <div className="flex items-center space-x-1 flex-shrink-0">
                             <button

@@ -19,6 +19,7 @@ import {
 export default function MeetingsPage() {
   const [meetings, setMeetings] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -30,12 +31,14 @@ export default function MeetingsPage() {
   useEffect(() => {
     async function loadMeetingsData() {
       try {
-        const [meetingsData, projectsData] = await Promise.all([
+        const [meetingsData, projectsData, usersData] = await Promise.all([
           api.get(process.env.NEXT_PUBLIC_MEETINGS || "http://localhost:8000/api/meetings/"),
           api.get(process.env.NEXT_PUBLIC_PROJECTS || "http://localhost:8000/api/projects/"),
+          api.get(process.env.NEXT_PUBLIC_USERS || "http://localhost:8000/api/users/"),
         ]);
         setMeetings(meetingsData);
         setProjects(projectsData);
+        setUsers(usersData);
       } catch (err) {
         console.error(err);
         setError("Failed to retrieve meeting reports from the backend server.");
@@ -50,11 +53,13 @@ export default function MeetingsPage() {
   }, []);
 
   const loggedInUsername = api.getUsername();
-  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+  const isMasterAdmin = loggedInUsername === 'harshadabk2309@gmail.com';
+  const currentUser = users.find(u => u.emailid === loggedInUsername);
+  const userOrg = currentUser?.organization || 'iSyra';
 
   const filteredMeetings = meetings.filter((meeting) => {
-    // Hide Archit related project meetings for other users
-    if (meeting.project?.is_archit_related && !isUserAdminAOrArchit) {
+    // Hide project meetings that don't belong to the user's organization
+    if (meeting.project?.organization && meeting.project.organization !== userOrg && !isMasterAdmin) {
       return false;
     }
 
@@ -127,7 +132,7 @@ export default function MeetingsPage() {
           >
             <option value="">All Projects</option>
             {(() => {
-              const filteredProjectsList = projects.filter(p => isUserAdminAOrArchit || !p.is_archit_related);
+              const filteredProjectsList = projects.filter(p => isMasterAdmin || p.organization === userOrg);
               return filteredProjectsList.map((proj) => (
                 <option key={proj.id} value={proj.id}>
                   {proj.name}

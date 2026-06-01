@@ -41,6 +41,7 @@ export default function UsersPage() {
   const [formEmailId, setFormEmailId] = useState("");
   const [formPassword, setFormPassword] = useState("");
   const [formRole, setFormRole] = useState("Standard");
+  const [formOrganization, setFormOrganization] = useState("iSyra");
   const [formActive, setFormActive] = useState("Active");
   const [submitLoading, setSubmitLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -75,6 +76,7 @@ export default function UsersPage() {
     setFormEmailId("");
     setFormPassword("");
     setFormRole("Standard");
+    setFormOrganization("iSyra");
     setFormActive("Active");
     setShowPassword(false);
     setError("");
@@ -88,6 +90,7 @@ export default function UsersPage() {
     setFormEmailId(user.emailid || "");
     setFormPassword(""); // Leave password blank on edit unless changing
     setFormRole(user.role || "Standard");
+    setFormOrganization(user.organization || "iSyra");
     setFormActive(user.active || "Active");
     setShowPassword(false);
     setError("");
@@ -109,6 +112,7 @@ export default function UsersPage() {
         last_name: user.last_name,
         emailid: user.emailid,
         role: user.role,
+        organization: user.organization || "iSyra",
         active: newActiveStatus
       });
 
@@ -163,6 +167,7 @@ export default function UsersPage() {
       last_name: formLastName.trim(),
       emailid: formEmailId.trim(),
       role: formRole,
+      organization: formOrganization,
       active: formActive
     };
 
@@ -259,6 +264,7 @@ export default function UsersPage() {
               <th className="py-4 px-6">Full Name</th>
               <th className="py-4 px-6">Email (Username)</th>
               <th className="py-4 px-6">Role</th>
+              <th className="py-4 px-6">Organization</th>
               <th className="py-4 px-6">Status</th>
               <th className="py-4 px-6">Last Login</th>
               <th className="py-4 px-6 text-right">Actions</th>
@@ -300,6 +306,17 @@ export default function UsersPage() {
                       <span>Standard</span>
                     </span>
                   )}
+                </td>
+
+                {/* Organization */}
+                <td className="py-4 px-6">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
+                    user.organization === 'Own' 
+                      ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' 
+                      : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'
+                  }`}>
+                    {user.organization || 'iSyra'}
+                  </span>
                 </td>
 
                 {/* Status active/inactive */}
@@ -468,8 +485,8 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              {/* Role selection & Active selection row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              {/* Role, Organization, & Active Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     System Role
@@ -481,6 +498,20 @@ export default function UsersPage() {
                   >
                     <option value="Standard">Standard User</option>
                     <option value="Admin">Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                    Organization
+                  </label>
+                  <select
+                    value={formOrganization}
+                    onChange={(e) => setFormOrganization(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
+                  >
+                    <option value="iSyra">iSyra (Us)</option>
+                    <option value="Own">Own (Private)</option>
                   </select>
                 </div>
 

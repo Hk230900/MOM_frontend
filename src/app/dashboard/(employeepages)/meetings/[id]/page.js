@@ -90,10 +90,13 @@ export default function MeetingDetailPage({ params }) {
         api.get(meetingsUrl),
       ]);
 
-      // Check visibility of this meeting based on is_archit_related
+      // Check visibility of this meeting based on organization
       const loggedInUsername = api.getUsername();
-      const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
-      if (meetingData.project?.is_archit_related && !isUserAdminAOrArchit) {
+      const currentUser = usersData.find(u => u.emailid === loggedInUsername);
+      const isMasterAdmin = loggedInUsername === 'harshadabk2309@gmail.com';
+      const userOrg = currentUser?.organization || 'iSyra';
+
+      if (meetingData.project?.organization && meetingData.project.organization !== userOrg && !isMasterAdmin) {
         setError("You are not authorized to view this meeting report.");
         setMeeting(null);
         setLoading(false);
@@ -377,35 +380,37 @@ ${actionsMarkdown}
   }
 
   const loggedInUsername = api.getUsername();
-  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
-  
-  // Filter project categories
-  const filteredProjects = projects.filter(p => isUserAdminAOrArchit || !p.is_archit_related);
+  const isMasterAdmin = loggedInUsername === 'harshadabk2309@gmail.com';
+  const currentUser = users.find(u => u.emailid === loggedInUsername);
+  const userOrg = currentUser?.organization || 'iSyra';
 
-  // Filter attendees & action item assignees
+  // Filter project categories: Master Admin sees all, standard users see their organization's
+  const filteredProjects = projects.filter(p => isMasterAdmin || p.organization === userOrg);
+
+  // Filter attendees & action item assignees:
+  // - Admin A is hidden for everyone.
+  // - Master Admin sees all standard users.
+  // - Standard users see only users from their own organization.
   let selectableUsers = [];
-  if (loggedInUsername === 'harshadabk2309@gmail.com') {
+  if (isMasterAdmin) {
     selectableUsers = users.filter(u => u.emailid !== 'harshadabk2309@gmail.com');
-  } else if (loggedInUsername === 'architnaik161@gmail.com') {
-    selectableUsers = users.filter(u => u.emailid === 'architnaik161@gmail.com' || u.emailid === 'harshadabk2309@gmail.com');
   } else {
-    selectableUsers = users.filter(u => u.emailid !== 'architnaik161@gmail.com' && u.emailid !== 'harshadabk2309@gmail.com');
+    selectableUsers = users.filter(u => u.organization === userOrg && u.emailid !== 'harshadabk2309@gmail.com');
   }
 
-  // Filter organizer dropdown
+  // Filter organizer dropdown:
+  // - Master Admin sees all.
+  // - Standard users see only users from their own organization (Admin A is hidden).
   let selectableOrganizers = [];
-  if (loggedInUsername === 'harshadabk2309@gmail.com') {
+  if (isMasterAdmin) {
     selectableOrganizers = users;
-  } else if (loggedInUsername === 'architnaik161@gmail.com') {
-    selectableOrganizers = users.filter(u => u.emailid === 'architnaik161@gmail.com' || u.emailid === 'harshadabk2309@gmail.com');
   } else {
-    selectableOrganizers = users.filter(u => u.emailid !== 'architnaik161@gmail.com');
+    selectableOrganizers = users.filter(u => u.organization === userOrg && u.emailid !== 'harshadabk2309@gmail.com');
   }
 
   // Filter meetings for follow-ups
   const filteredMeetings = meetings.filter(m => {
-    const isArchitProject = m.project?.is_archit_related;
-    return isUserAdminAOrArchit || !isArchitProject;
+    return isMasterAdmin || !m.project || m.project.organization === userOrg;
   });
 
   return (
