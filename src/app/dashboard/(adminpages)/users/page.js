@@ -510,7 +510,7 @@ export default function UsersPage() {
                     onChange={(e) => setFormOrganization(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
                   >
-                    <option value="iSyra">iSyra (Us)</option>
+                    <option value="iSyra">iSyra</option>
                     <option value="Own">Own (Private)</option>
                   </select>
                 </div>

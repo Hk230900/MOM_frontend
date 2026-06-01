@@ -215,7 +215,7 @@ export default function ProjectsPage() {
                 onChange={(e) => setOrganization(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all duration-200"
               >
-                <option value="iSyra">iSyra (Us)</option>
+                <option value="iSyra">iSyra</option>
                 <option value="Own">Own (Private)</option>
               </select>
             </div>
@@ -300,7 +300,7 @@ export default function ProjectsPage() {
                                 ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                                 : "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                             }`}>
-                              {project.organization === 'Own' ? 'Own (Private)' : 'iSyra (Us)'}
+                              {project.organization === 'Own' ? 'Own (Private)' : 'iSyra'}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1 flex-shrink-0">
