@@ -90,6 +90,16 @@ export default function MeetingDetailPage({ params }) {
         api.get(meetingsUrl),
       ]);
 
+      // Check visibility of this meeting based on is_archit_related
+      const loggedInUsername = api.getUsername();
+      const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+      if (meetingData.project?.is_archit_related && !isUserAdminAOrArchit) {
+        setError("You are not authorized to view this meeting report.");
+        setMeeting(null);
+        setLoading(false);
+        return;
+      }
+
       setMeeting(meetingData);
       setProjects(projectsData);
       setUsers(usersData);
@@ -366,7 +376,37 @@ ${actionsMarkdown}
     );
   }
 
-  const selectableUsers = users.filter(u => u.emailid !== 'harshadabk2309@gmail.com');
+  const loggedInUsername = api.getUsername();
+  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+  
+  // Filter project categories
+  const filteredProjects = projects.filter(p => isUserAdminAOrArchit || !p.is_archit_related);
+
+  // Filter attendees & action item assignees
+  let selectableUsers = [];
+  if (loggedInUsername === 'harshadabk2309@gmail.com') {
+    selectableUsers = users.filter(u => u.emailid !== 'harshadabk2309@gmail.com');
+  } else if (loggedInUsername === 'architnaik161@gmail.com') {
+    selectableUsers = users.filter(u => u.emailid === 'architnaik161@gmail.com' || u.emailid === 'harshadabk2309@gmail.com');
+  } else {
+    selectableUsers = users.filter(u => u.emailid !== 'architnaik161@gmail.com' && u.emailid !== 'harshadabk2309@gmail.com');
+  }
+
+  // Filter organizer dropdown
+  let selectableOrganizers = [];
+  if (loggedInUsername === 'harshadabk2309@gmail.com') {
+    selectableOrganizers = users;
+  } else if (loggedInUsername === 'architnaik161@gmail.com') {
+    selectableOrganizers = users.filter(u => u.emailid === 'architnaik161@gmail.com' || u.emailid === 'harshadabk2309@gmail.com');
+  } else {
+    selectableOrganizers = users.filter(u => u.emailid !== 'architnaik161@gmail.com');
+  }
+
+  // Filter meetings for follow-ups
+  const filteredMeetings = meetings.filter(m => {
+    const isArchitProject = m.project?.is_archit_related;
+    return isUserAdminAOrArchit || !isArchitProject;
+  });
 
   return (
     <SidebarLayout>
@@ -495,7 +535,7 @@ ${actionsMarkdown}
                       required
                     >
                       <option value="">Select...</option>
-                      {projects.map((p) => (
+                      {filteredProjects.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
                         </option>
@@ -580,7 +620,7 @@ ${actionsMarkdown}
                   className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
                 >
                   <option value="">-- No Follow-up (Independent Meeting) --</option>
-                  {meetings.map((m) => (
+                  {filteredMeetings.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.date} | {m.title} ({m.meeting_type})
                     </option>
@@ -719,7 +759,7 @@ ${actionsMarkdown}
                   className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
                   required
                 >
-                  {users.map((u) => (
+                  {selectableOrganizers.map((u) => (
                     <option key={u.user_id} value={u.user_id}>
                       {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")} ({u.emailid || u.username || "User"})
                     </option>

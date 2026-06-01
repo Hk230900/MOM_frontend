@@ -49,7 +49,15 @@ export default function MeetingsPage() {
     }
   }, []);
 
+  const loggedInUsername = api.getUsername();
+  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+
   const filteredMeetings = meetings.filter((meeting) => {
+    // Hide Archit related project meetings for other users
+    if (meeting.project?.is_archit_related && !isUserAdminAOrArchit) {
+      return false;
+    }
+
     const matchesSearch = 
       meeting.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (meeting.minutes && meeting.minutes.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -118,11 +126,14 @@ export default function MeetingsPage() {
             className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all appearance-none cursor-pointer"
           >
             <option value="">All Projects</option>
-            {projects.map((proj) => (
-              <option key={proj.id} value={proj.id}>
-                {proj.name}
-              </option>
-            ))}
+            {(() => {
+              const filteredProjectsList = projects.filter(p => isUserAdminAOrArchit || !p.is_archit_related);
+              return filteredProjectsList.map((proj) => (
+                <option key={proj.id} value={proj.id}>
+                  {proj.name}
+                </option>
+              ));
+            })()}
           </select>
         </div>
 

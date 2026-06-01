@@ -100,7 +100,9 @@ function NewMeetingForm() {
         }
 
         // Default project & client dropdown defaults
-        if (projData.length > 0) setProjectId(projData[0].id);
+        const userIsArchitOrAdmin = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+        const allowedProj = userIsArchitOrAdmin ? projData : projData.filter(p => !p.is_archit_related);
+        if (allowedProj.length > 0) setProjectId(allowedProj[0].id);
         if (clientData.length > 0) setClientId(clientData[0].id);
 
       } catch (err) {
@@ -260,7 +262,37 @@ function NewMeetingForm() {
     );
   }
 
-  const selectableUsers = users.filter(u => u.emailid !== 'harshadabk2309@gmail.com');
+  const loggedInUsername = api.getUsername();
+  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+  
+  // Filter project categories
+  const filteredProjects = projects.filter(p => isUserAdminAOrArchit || !p.is_archit_related);
+
+  // Filter attendees & action item assignees
+  let selectableUsers = [];
+  if (loggedInUsername === 'harshadabk2309@gmail.com') {
+    selectableUsers = users.filter(u => u.emailid !== 'harshadabk2309@gmail.com');
+  } else if (loggedInUsername === 'architnaik161@gmail.com') {
+    selectableUsers = users.filter(u => u.emailid === 'architnaik161@gmail.com' || u.emailid === 'harshadabk2309@gmail.com');
+  } else {
+    selectableUsers = users.filter(u => u.emailid !== 'architnaik161@gmail.com' && u.emailid !== 'harshadabk2309@gmail.com');
+  }
+
+  // Filter organizer dropdown
+  let selectableOrganizers = [];
+  if (loggedInUsername === 'harshadabk2309@gmail.com') {
+    selectableOrganizers = users;
+  } else if (loggedInUsername === 'architnaik161@gmail.com') {
+    selectableOrganizers = users.filter(u => u.emailid === 'architnaik161@gmail.com' || u.emailid === 'harshadabk2309@gmail.com');
+  } else {
+    selectableOrganizers = users.filter(u => u.emailid !== 'architnaik161@gmail.com');
+  }
+
+  // Filter meetings for follow-ups
+  const filteredMeetings = meetings.filter(m => {
+    const isArchitProject = m.project?.is_archit_related;
+    return isUserAdminAOrArchit || !isArchitProject;
+  });
 
   return (
     <div className="space-y-6">
@@ -340,7 +372,7 @@ function NewMeetingForm() {
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     Project Category
                   </label>
-                  {projects.length === 0 ? (
+                  {filteredProjects.length === 0 ? (
                     <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg flex items-center space-x-1.5">
                       <AlertCircle className="h-4 w-4 flex-shrink-0" />
                       <span>No projects. <Link href="/dashboard/projects" className="underline font-bold">Create one</Link>.</span>
@@ -352,7 +384,7 @@ function NewMeetingForm() {
                       className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
                       required
                     >
-                      {projects.map((p) => (
+                      {filteredProjects.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name}
                         </option>
@@ -445,7 +477,7 @@ function NewMeetingForm() {
                 className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
               >
                 <option value="">-- No Follow-up (Independent Meeting) --</option>
-                {meetings.map((m) => (
+                {filteredMeetings.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.date} | {m.title} ({m.meeting_type})
                   </option>
@@ -585,7 +617,7 @@ function NewMeetingForm() {
                 className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
                 required
               >
-                {users.map((u) => (
+                {selectableOrganizers.map((u) => (
                   <option key={u.user_id} value={u.user_id}>
                     {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")} ({u.emailid || u.username || "User"})
                   </option>

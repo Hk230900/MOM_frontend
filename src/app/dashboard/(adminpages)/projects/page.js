@@ -11,6 +11,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [isArchitRelated, setIsArchitRelated] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -55,21 +56,25 @@ export default function ProjectsPage() {
         const updatedProj = await api.put(`${projectsUrl}${editingProject.id}/`, {
           name: name.trim(),
           description: description.trim() || "",
+          is_archit_related: isArchitRelated,
         });
         setProjects(projects.map(p => p.id === editingProject.id ? updatedProj : p));
         setSuccess(`Project "${updatedProj.name}" updated successfully!`);
         setEditingProject(null);
         setName("");
         setDescription("");
+        setIsArchitRelated(false);
       } else {
         // Create mode
         const newProj = await api.post(projectsUrl, {
           name: name.trim(),
           description: description.trim() || "",
+          is_archit_related: isArchitRelated,
         });
         setProjects([newProj, ...projects]);
         setName("");
         setDescription("");
+        setIsArchitRelated(false);
         setSuccess(`Project "${newProj.name}" created successfully!`);
       }
       
@@ -91,6 +96,7 @@ export default function ProjectsPage() {
     setEditingProject(project);
     setName(project.name);
     setDescription(project.description || "");
+    setIsArchitRelated(project.is_archit_related || false);
     setError("");
     setSuccess("");
     // Scroll to the top of the form for better mobile experience
@@ -101,6 +107,7 @@ export default function ProjectsPage() {
     setEditingProject(null);
     setName("");
     setDescription("");
+    setIsArchitRelated(false);
     setError("");
     setSuccess("");
   };
@@ -193,6 +200,19 @@ export default function ProjectsPage() {
               />
             </div>
 
+            <div className="flex items-center space-x-2 py-1">
+              <input
+                type="checkbox"
+                id="isArchitRelated"
+                checked={isArchitRelated}
+                onChange={(e) => setIsArchitRelated(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-800 bg-slate-950/60 text-indigo-600 focus:ring-indigo-550 focus:ring-offset-slate-900 focus:outline-none cursor-pointer"
+              />
+              <label htmlFor="isArchitRelated" className="text-xs font-semibold text-slate-400 cursor-pointer select-none">
+                Is this project related to Archit Naik?
+              </label>
+            </div>
+
             <div className="flex gap-3">
               {editingProject && (
                 <button
@@ -223,79 +243,94 @@ export default function ProjectsPage() {
         </div>
 
         {/* Right Side: Projects List */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-lg text-white">Active Projects ({projects.length})</h3>
-          </div>
+        {(() => {
+          const currentUserEmail = api.getUsername();
+          const showAll = currentUserEmail === 'harshadabk2309@gmail.com' || currentUserEmail === 'architnaik161@gmail.com';
+          const filteredProjects = projects.filter(p => showAll || !p.is_archit_related);
 
-          {loading ? (
-            <div className="flex h-40 items-center justify-center border border-slate-800 rounded-xl bg-slate-900/10">
-              <div className="flex flex-col items-center space-y-3">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
-                <p className="text-slate-400 text-xs font-medium">Loading project catalog...</p>
+          return (
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-lg text-white">Active Projects ({filteredProjects.length})</h3>
               </div>
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 border border-dashed border-slate-800 rounded-xl bg-slate-900/20 text-center px-4">
-              <FolderKanban className="h-10 w-10 text-slate-600 mb-3" />
-              <h4 className="text-sm font-semibold text-white">No projects categories found</h4>
-              <p className="text-slate-400 text-xs mt-1 max-w-sm">
-                Create your first project category using the form on the left to start organizing your meetings.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {projects.map((project) => (
-                <div
-                  key={project.id}
-                  className={`bg-slate-900/40 border p-5 rounded-xl transition-all duration-200 flex flex-col justify-between ${
-                    editingProject && editingProject.id === project.id 
-                      ? "border-indigo-500 shadow-md shadow-indigo-500/10" 
-                      : "border-slate-800 hover:border-indigo-500/30"
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-bold text-white text-base truncate flex-1" title={project.name}>
-                        {project.name}
-                      </h4>
-                      <div className="flex items-center space-x-1 flex-shrink-0">
-                        <button
-                          onClick={() => handleStartEdit(project)}
-                          title="Edit project"
-                          className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-850 rounded-lg transition-colors"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(project)}
-                          title="Delete project"
-                          className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-850 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 line-clamp-3 min-h-[48px]">
-                      {project.description || "No description provided."}
-                    </p>
-                  </div>
-                  
-                  <div className="mt-4 pt-3 border-t border-slate-850 flex items-center justify-between text-[11px] text-slate-500">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span>{new Date(project.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-indigo-400">
-                      <FileText className="h-3.5 w-3.5" />
-                      <span>MOM Category</span>
-                    </div>
+
+              {loading ? (
+                <div className="flex h-40 items-center justify-center border border-slate-800 rounded-xl bg-slate-900/10">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
+                    <p className="text-slate-400 text-xs font-medium">Loading project catalog...</p>
                   </div>
                 </div>
-              ))}
+              ) : filteredProjects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 border border-dashed border-slate-800 rounded-xl bg-slate-900/20 text-center px-4">
+                  <FolderKanban className="h-10 w-10 text-slate-600 mb-3" />
+                  <h4 className="text-sm font-semibold text-white">No projects categories found</h4>
+                  <p className="text-slate-400 text-xs mt-1 max-w-sm">
+                    Create your first project category using the form on the left to start organizing your meetings.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className={`bg-slate-900/40 border p-5 rounded-xl transition-all duration-200 flex flex-col justify-between ${
+                        editingProject && editingProject.id === project.id 
+                          ? "border-indigo-500 shadow-md shadow-indigo-500/10" 
+                          : "border-slate-800 hover:border-indigo-500/30"
+                      }`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-col space-y-1 overflow-hidden flex-1">
+                            <h4 className="font-bold text-white text-base truncate" title={project.name}>
+                              {project.name}
+                            </h4>
+                            {project.is_archit_related && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 w-fit">
+                                Archit Naik Related
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-1 flex-shrink-0">
+                            <button
+                              onClick={() => handleStartEdit(project)}
+                              title="Edit project"
+                              className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-850 rounded-lg transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(project)}
+                              title="Delete project"
+                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-850 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-400 line-clamp-3 min-h-[48px]">
+                          {project.description || "No description provided."}
+                        </p>
+                      </div>
+                      
+                      <div className="mt-4 pt-3 border-t border-slate-850 flex items-center justify-between text-[11px] text-slate-500">
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>{new Date(project.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-indigo-400">
+                          <FileText className="h-3.5 w-3.5" />
+                          <span>MOM Category</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
       </div>
     </SidebarLayout>
   );

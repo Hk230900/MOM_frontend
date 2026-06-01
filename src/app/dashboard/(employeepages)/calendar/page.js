@@ -101,8 +101,12 @@ export default function CalendarPage() {
   }
 
   // Group meetings by date string 'YYYY-MM-DD'
+  const loggedInUsername = api.getUsername();
+  const isUserAdminAOrArchit = loggedInUsername === 'harshadabk2309@gmail.com' || loggedInUsername === 'architnaik161@gmail.com';
+  const visibleMeetings = meetings.filter(m => isUserAdminAOrArchit || !m.project?.is_archit_related);
+
   const meetingsByDate = {};
-  meetings.forEach(meeting => {
+  visibleMeetings.forEach(meeting => {
     const dStr = meeting.date; // already YYYY-MM-DD
     if (!meetingsByDate[dStr]) {
       meetingsByDate[dStr] = [];
