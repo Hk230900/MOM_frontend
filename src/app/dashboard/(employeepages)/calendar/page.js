@@ -126,6 +126,15 @@ export default function CalendarPage() {
   const userOrg = currentUser?.organization || 'iSyra';
   const visibleMeetings = meetings.filter(m => isMasterAdmin || !m.project || m.project.organization === userOrg);
 
+  const meetingsByDate = {};
+  visibleMeetings.forEach(meeting => {
+    const dStr = meeting.date; // already YYYY-MM-DD
+    if (!meetingsByDate[dStr]) {
+      meetingsByDate[dStr] = [];
+    }
+    meetingsByDate[dStr].push(meeting);
+  });
+
   const remindersByDate = {};
   reminders.forEach(reminder => {
     const dStr = reminder.date; // YYYY-MM-DD
