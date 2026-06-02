@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Bell, Clock, Trash2, Calendar, BellOff } from "lucide-react";
 import { api } from "@/lib/api";
+import { formatTime } from "@/lib/utils";
 
 export default function NotificationBell() {
   const [reminders, setReminders] = useState([]);
@@ -64,7 +65,26 @@ export default function NotificationBell() {
     return !r.is_sent || r.date >= todayStr;
   });
 
-  const unreadCount = activeReminders.filter(r => !r.is_sent).length;
+  const unreadCount = activeReminders.filter(r => !r.is_read).length;
+
+  // Automatically mark all displayed unread reminders as read when dropdown is opened
+  useEffect(() => {
+    if (isOpen) {
+      const unreadReminders = activeReminders.filter(r => !r.is_read);
+      if (unreadReminders.length > 0) {
+        unreadReminders.forEach(async (reminder) => {
+          try {
+            const url = `${process.env.NEXT_PUBLIC_REMINDERS}${reminder.id}/`;
+            await api.patch(url, { is_read: true });
+            // Update local state
+            setReminders(prev => prev.map(r => r.id === reminder.id ? { ...r, is_read: true } : r));
+          } catch (err) {
+            console.error("Failed to mark reminder as read:", err);
+          }
+        });
+      }
+    }
+  }, [isOpen, reminders]);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -129,7 +149,7 @@ export default function NotificationBell() {
                   <div
                     key={reminder.id}
                     className={`p-4 flex items-start justify-between space-x-3 transition-colors duration-150 hover:bg-slate-850/50
-                      ${reminder.is_sent ? "opacity-60" : "bg-indigo-600/5 border-l-2 border-indigo-500"}`}
+                      ${reminder.is_read ? "opacity-60" : "bg-indigo-600/5 border-l-2 border-indigo-500"}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
@@ -156,7 +176,7 @@ export default function NotificationBell() {
                         </span>
                         <span className="flex items-center space-x-1">
                           <Clock className="h-3 w-3 text-indigo-400" />
-                          <span>{reminder.time.substring(0, 5)}</span>
+                          <span>{formatTime(reminder.time)}</span>
                         </span>
                       </div>
                     </div>

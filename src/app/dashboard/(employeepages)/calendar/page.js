@@ -555,7 +555,7 @@ export default function CalendarPage() {
                               <span className="font-medium text-amber-200 block truncate">{reminder.title}</span>
                               <span className="text-slate-400 text-[9px] flex items-center space-x-1 mt-0.5">
                                 <Clock className="h-2.5 w-2.5 text-amber-400" />
-                                <span>{reminder.time.substring(0, 5)}</span>
+                                <span>{formatTime(reminder.time)}</span>
                               </span>
                             </div>
                             <button
