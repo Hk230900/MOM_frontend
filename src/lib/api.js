@@ -85,6 +85,20 @@ export const api = {
     }
     return res.json();
   },
+  patch: async (url, body, options = {}) => {
+    const res = await fetchWithAuth(url, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      const err = new Error(`PATCH query failed with status ${res.status}`);
+      err.details = errorData;
+      throw err;
+    }
+    return res.json();
+  },
   delete: async (url, options = {}) => {
     const res = await fetchWithAuth(url, { ...options, method: 'DELETE' });
     if (!res.ok) throw new Error(`DELETE query failed with status ${res.status}`);
