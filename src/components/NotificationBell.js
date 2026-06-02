@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, Clock, Trash2, Calendar, BellOff } from "lucide-react";
+import { Bell, Clock, Trash2, Calendar, BellOff, X, AlertCircle } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatTime } from "@/lib/utils";
 
@@ -46,15 +46,29 @@ export default function NotificationBell() {
     };
   }, []);
 
-  const handleDelete = async (id, e) => {
+  const [reminderToDelete, setReminderToDelete] = useState(null);
+  const [deletingReminder, setDeletingReminder] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const initiateDelete = (reminder, e) => {
     e.stopPropagation();
+    setReminderToDelete(reminder);
+    setDeleteError("");
+  };
+
+  const confirmDelete = async () => {
+    if (!reminderToDelete) return;
     try {
-      const url = `${process.env.NEXT_PUBLIC_REMINDERS}${id}/`;
+      setDeletingReminder(true);
+      const url = `${process.env.NEXT_PUBLIC_REMINDERS}${reminderToDelete.id}/`;
       await api.delete(url);
-      // Remove from state
-      setReminders((prev) => prev.filter((r) => r.id !== id));
+      setReminders((prev) => prev.filter((r) => r.id !== reminderToDelete.id));
+      setReminderToDelete(null);
     } catch (err) {
       console.error("Failed to delete reminder:", err);
+      setDeleteError("Failed to delete. Please try again.");
+    } finally {
+      setDeletingReminder(false);
     }
   };
 
@@ -183,7 +197,7 @@ export default function NotificationBell() {
 
                     {/* Delete action */}
                     <button
-                      onClick={(e) => handleDelete(reminder.id, e)}
+                      onClick={(e) => initiateDelete(reminder, e)}
                       title="Delete reminder"
                       className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all duration-150"
                     >
@@ -206,6 +220,60 @@ export default function NotificationBell() {
             </a>
           </div>
 
+        </div>
+      )}
+      {/* Modal: Custom Delete Confirmation */}
+      {reminderToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-2xl relative mx-4">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between mb-3 pb-2 border-b border-slate-850">
+              <h3 className="font-bold text-white text-sm flex items-center space-x-2">
+                <AlertCircle className="h-4.5 w-4.5 text-rose-500" />
+                <span>Delete Alert Reminder</span>
+              </h3>
+              <button
+                onClick={() => setReminderToDelete(null)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-850 hover:text-white"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="space-y-3 text-xs text-slate-350 leading-relaxed">
+              <p>Are you sure you want to delete <strong className="text-white">"{reminderToDelete.title}"</strong>?</p>
+              
+              {deleteError && (
+                <div className="flex items-start space-x-2 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg text-rose-400 text-[10px]">
+                  <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end space-x-2.5 mt-5 pt-2.5 border-t border-slate-850">
+              <button
+                type="button"
+                disabled={deletingReminder}
+                onClick={() => setReminderToDelete(null)}
+                className="px-3 py-1.5 bg-slate-950/80 border border-slate-800 hover:bg-slate-900 text-slate-350 rounded-lg text-[10px] font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deletingReminder}
+                onClick={confirmDelete}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:bg-rose-800 text-white rounded-lg text-[10px] font-semibold transition-all"
+              >
+                {deletingReminder ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
