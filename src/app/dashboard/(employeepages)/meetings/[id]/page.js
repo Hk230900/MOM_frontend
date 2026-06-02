@@ -6,6 +6,7 @@ import Link from "next/link";
 import SidebarLayout from "@/components/SidebarLayout";
 import { api } from "@/lib/api";
 import { formatTime } from "@/lib/utils";
+import ClockPicker from "@/components/ClockPicker";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -628,13 +629,7 @@ ${actionsMarkdown}
                     <Clock className="h-3.5 w-3.5 text-indigo-400" />
                     <span>Time</span>
                   </label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
-                    required
-                  />
+                  <ClockPicker value={time} onChange={setTime} />
                 </div>
               </div>
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import SidebarLayout from "@/components/SidebarLayout";
 import { api } from "@/lib/api";
 import { formatTime } from "@/lib/utils";
+import ClockPicker from "@/components/ClockPicker";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -608,14 +609,7 @@ export default function CalendarPage() {
                       
                       <div className="grid grid-cols-1 gap-3">
                         <div>
-                          <label className="block text-[11px] text-slate-400 font-medium mb-1">Notification Time</label>
-                          <input
-                            type="time"
-                            required
-                            value={reminderTime}
-                            onChange={(e) => setReminderTime(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-                          />
+                          <ClockPicker value={reminderTime} onChange={setReminderTime} label="Notification Time" />
                         </div>
                       </div>
 
