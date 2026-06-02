@@ -30,7 +30,42 @@ export default function EmployeeDashboard() {
   const [checkingTaskId, setCheckingTaskId] = useState(null);
   const [upcomingMeetings, setUpcomingMeetings] = useState([]);
   const [showMeetingsModal, setShowMeetingsModal] = useState(false);
+  const [currentUserInfo, setCurrentUserInfo] = useState({ id: null, fullName: "" });
   const [loading, setLoading] = useState(true);
+
+  const checkIsAssignedToMe = (item, meeting, userId, userFullName, username) => {
+    // 1. Check if ID matches
+    if (userId && (item.assignee_id === userId || (item.assignees && item.assignees.some(a => a.id === userId)))) {
+      return true;
+    }
+    // 2. Check if Email matches
+    if (item.assignees && Array.isArray(item.assignees)) {
+      if (item.assignees.some(assignee => assignee.email === username || assignee.name === username)) {
+        return true;
+      }
+    }
+    // 3. Check if Full Name matches (case-insensitive)
+    if (userFullName) {
+      const fullNameLower = userFullName.toLowerCase();
+      if (item.assignee_name && item.assignee_name.toLowerCase() === fullNameLower) {
+        return true;
+      }
+      if (item.assignees && Array.isArray(item.assignees)) {
+        if (item.assignees.some(a => a.name && a.name.toLowerCase() === fullNameLower)) {
+          return true;
+        }
+      }
+    }
+    // 4. Fallback for old single-string username/email matches
+    if (item.assignee_name === username) {
+      return true;
+    }
+    // 5. Fallback for Organizer keyword
+    if (item.assignee_name === "Organizer" && meeting.organizer && meeting.organizer.username === username) {
+      return true;
+    }
+    return false;
+  };
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -45,6 +80,30 @@ export default function EmployeeDashboard() {
       const meetings = await api.get(meetingsUrl);
       const currentUsername = api.getUsername();
 
+      // Find current user's full name and ID from meetings payload
+      let resolvedFullName = "";
+      let resolvedId = null;
+      for (const m of meetings) {
+        if (m.organizer && m.organizer.username === currentUsername) {
+          resolvedId = m.organizer.id;
+          if (m.organizer.first_name || m.organizer.last_name) {
+            resolvedFullName = `${m.organizer.first_name || ''} ${m.organizer.last_name || ''}`.trim();
+          }
+        }
+        if (m.attendees && Array.isArray(m.attendees)) {
+          const found = m.attendees.find(att => att.username === currentUsername);
+          if (found) {
+            if (found.id) resolvedId = found.id;
+            if (found.first_name || found.last_name) {
+              resolvedFullName = `${found.first_name || ''} ${found.last_name || ''}`.trim();
+            }
+          }
+        }
+        if (resolvedFullName && resolvedId) break;
+      }
+
+      setCurrentUserInfo({ id: resolvedId, fullName: resolvedFullName });
+
       // Filter meetings where current user is organizer or attendee
       const myMeetings = meetings.filter(m => 
         (m.organizer && m.organizer.username === currentUsername) ||
@@ -56,19 +115,7 @@ export default function EmployeeDashboard() {
       meetings.forEach(meeting => {
         if (meeting.action_items && Array.isArray(meeting.action_items)) {
           meeting.action_items.forEach(item => {
-            // Support both old assignee_name structure and new assignees array
-            let isAssignedToMe = false;
-            if (item.assignees && Array.isArray(item.assignees)) {
-              isAssignedToMe = item.assignees.some(assignee => 
-                assignee.email === currentUsername || 
-                assignee.name === currentUsername
-              );
-            } else {
-              isAssignedToMe = item.assignee_name === currentUsername || 
-                               (meeting.organizer && meeting.organizer.username === currentUsername && item.assignee_name === "Organizer");
-            }
-
-            if (isAssignedToMe && !item.completed) {
+            if (checkIsAssignedToMe(item, meeting, resolvedId, resolvedFullName, currentUsername) && !item.completed) {
               myOpenActionsCount++;
             }
           });
@@ -131,10 +178,7 @@ export default function EmployeeDashboard() {
     updatedMeetings.forEach(m => {
       if (m.action_items && Array.isArray(m.action_items)) {
         m.action_items.forEach(item => {
-          const isAssignedToMe = item.assignees && Array.isArray(item.assignees)
-            ? item.assignees.some(assignee => assignee.email === currentUsername || assignee.name === currentUsername)
-            : item.assignee_name === currentUsername;
-          if (isAssignedToMe && !item.completed) {
+          if (checkIsAssignedToMe(item, m, currentUserInfo.id, currentUserInfo.fullName, currentUsername) && !item.completed) {
             myOpenActionsCount++;
           }
         });
@@ -186,11 +230,7 @@ export default function EmployeeDashboard() {
   allMeetings.forEach(meeting => {
     if (meeting.action_items && Array.isArray(meeting.action_items)) {
       meeting.action_items.forEach(item => {
-        const isAssignedToMe = item.assignees && Array.isArray(item.assignees)
-          ? item.assignees.some(assignee => assignee.email === currentUsername || assignee.name === currentUsername)
-          : item.assignee_name === currentUsername;
-        
-        if (isAssignedToMe && !item.completed) {
+        if (checkIsAssignedToMe(item, meeting, currentUserInfo.id, currentUserInfo.fullName, currentUsername) && !item.completed) {
           myPendingTasks.push({
             meetingId: meeting.id,
             meetingTitle: meeting.title,
