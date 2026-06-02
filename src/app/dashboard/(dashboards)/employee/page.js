@@ -226,12 +226,12 @@ export default function EmployeeDashboard() {
   }
 
   const currentUsername = api.getUsername();
-  const myPendingTasks = [];
+  const myTasks = [];
   allMeetings.forEach(meeting => {
     if (meeting.action_items && Array.isArray(meeting.action_items)) {
       meeting.action_items.forEach(item => {
-        if (checkIsAssignedToMe(item, meeting, currentUserInfo.id, currentUserInfo.fullName, currentUsername) && !item.completed) {
-          myPendingTasks.push({
+        if (checkIsAssignedToMe(item, meeting, currentUserInfo.id, currentUserInfo.fullName, currentUsername)) {
+          myTasks.push({
             meetingId: meeting.id,
             meetingTitle: meeting.title,
             task: item
@@ -240,6 +240,8 @@ export default function EmployeeDashboard() {
       });
     }
   });
+  // Sort tasks: pending first, completed last
+  myTasks.sort((a, b) => (a.task.completed ? 1 : 0) - (b.task.completed ? 1 : 0));
 
   return (
     <SidebarLayout>
@@ -281,14 +283,17 @@ export default function EmployeeDashboard() {
         <div 
           onClick={() => setShowTasksModal(true)}
           className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl shadow-xl flex items-center space-x-5 backdrop-blur-md cursor-pointer hover:bg-slate-900/80 hover:border-amber-500/30 transition-all duration-200"
-          title="Click to view pending action items"
+          title="Click to view all assigned action items"
         >
           <div className="h-12 w-12 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
             <CheckSquare className="h-6 w-6" />
           </div>
           <div>
-            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">My Pending Actions</span>
-            <span className="block text-2xl font-bold text-white mt-1">{stats.myActionItemsCount}</span>
+            <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">My Action Items</span>
+            <span className="block text-2xl font-bold text-white mt-1">
+              {stats.myActionItemsCount}
+              <span className="text-sm font-normal text-slate-400 ml-2">pending</span>
+            </span>
           </div>
         </div>
 
@@ -426,7 +431,7 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* Pending Tasks Modal */}
+      {/* Action Items Modal */}
       {showTasksModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-lg bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl relative animate-scale-up mx-4 flex flex-col max-h-[85vh]">
@@ -438,8 +443,8 @@ export default function EmployeeDashboard() {
                   <CheckSquare className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-lg">My Pending Actions</h3>
-                  <p className="text-slate-400 text-xs mt-0.5">Toggle checkboxes to check off tasks in real-time.</p>
+                  <h3 className="font-bold text-white text-lg">My Action Items</h3>
+                  <p className="text-slate-400 text-xs mt-0.5">Toggle checkboxes to complete or reopen tasks in real-time.</p>
                 </div>
               </div>
               <button
@@ -453,17 +458,21 @@ export default function EmployeeDashboard() {
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {myPendingTasks.length === 0 ? (
+              {myTasks.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   <CheckSquare className="h-12 w-12 mx-auto text-slate-600 mb-3" />
-                  <p className="text-sm font-semibold text-white">All caught up!</p>
-                  <p className="text-xs text-slate-400 mt-1">You have no pending action items assigned.</p>
+                  <p className="text-sm font-semibold text-white">No tasks assigned</p>
+                  <p className="text-xs text-slate-400 mt-1">You have no action items assigned to you.</p>
                 </div>
               ) : (
-                myPendingTasks.map(({ meetingId, meetingTitle, task }) => (
+                myTasks.map(({ meetingId, meetingTitle, task }) => (
                   <div
                     key={`${meetingId}-${task.id}`}
-                    className="flex items-start space-x-3.5 p-4 rounded-xl border bg-slate-950/40 border-slate-850 hover:border-slate-800 transition-all text-white"
+                    className={`flex items-start space-x-3.5 p-4 rounded-xl border transition-all text-white ${
+                      task.completed 
+                        ? "bg-slate-950/20 border-slate-850/60 opacity-65" 
+                        : "bg-slate-950/40 border-slate-850 hover:border-slate-800"
+                    }`}
                   >
                     <input
                       type="checkbox"
@@ -473,7 +482,7 @@ export default function EmployeeDashboard() {
                       className="mt-0.5 rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer disabled:opacity-50"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-relaxed text-slate-100">
+                      <p className={`text-sm font-medium leading-relaxed ${task.completed ? "text-slate-400 line-through" : "text-slate-100"}`}>
                         {task.text}
                       </p>
                       <div className="flex items-center space-x-1.5 mt-1.5 text-[10px] text-slate-400">
