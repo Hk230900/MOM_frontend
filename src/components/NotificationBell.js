@@ -145,8 +145,6 @@ export default function NotificationBell() {
               </div>
             ) : (
               activeReminders.map((reminder) => {
-                const isPastDue = reminder.date < todayStr && !reminder.is_sent;
-                
                 return (
                   <div
                     key={reminder.id}
