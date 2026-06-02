@@ -209,8 +209,18 @@ export default function AdminDashboard() {
                     <h4 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors duration-200">
                       {meeting.title}
                     </h4>
-                    <p className="text-xs text-slate-400">
-                      Organized by <span className="text-slate-300 font-medium">{meeting.organizer?.username}</span> • {meeting.date} at {formatTime(meeting.time)}
+                    <p className="text-xs text-slate-400 flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span>Organized by <span className="text-slate-300 font-medium">{meeting.organizer?.username}</span></span>
+                      <span className="text-slate-600">•</span>
+                      <span className="flex items-center space-x-1">
+                        <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+                        <span>{meeting.date}</span>
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="flex items-center space-x-1">
+                        <Clock className="h-3.5 w-3.5 text-indigo-400" />
+                        <span>{formatTime(meeting.time)}</span>
+                      </span>
                     </p>
                   </div>
                   <div className="flex items-center space-x-4">

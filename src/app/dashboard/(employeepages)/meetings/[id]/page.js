@@ -25,7 +25,8 @@ import {
   ListTodo,
   Handshake,
   FolderKanban,
-  GitBranch
+  GitBranch,
+  ChevronDown
 } from "lucide-react";
 
 export default function MeetingDetailPage({ params }) {
@@ -64,7 +65,8 @@ export default function MeetingDetailPage({ params }) {
   // Action Items states (for both editing and toggling)
   const [actionItems, setActionItems] = useState([]);
   const [newActionText, setNewActionText] = useState("");
-  const [newActionAssignee, setNewActionAssignee] = useState("");
+  const [newActionAssignees, setNewActionAssignees] = useState([]);
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
 
   const setActionItemsSafe = (items) => {
     const safeItems = (items || []).map((item, index) => ({
@@ -154,23 +156,39 @@ export default function MeetingDetailPage({ params }) {
     }
   };
 
+  const toggleAssignee = (userId) => {
+    if (newActionAssignees.includes(userId)) {
+      setNewActionAssignees(newActionAssignees.filter(id => id !== userId));
+    } else {
+      setNewActionAssignees([...newActionAssignees, userId]);
+    }
+  };
+
   const addActionItem = () => {
     if (!newActionText.trim()) return;
 
-    const assigneeUser = users.find(
-      u => u.user_id === parseInt(newActionAssignee)
-    );
+    const assignedUsers = users.filter(u => newActionAssignees.includes(u.user_id));
+    const itemAssignees = assignedUsers.map(u => ({
+      id: u.user_id,
+      name: u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username),
+      email: u.emailid || u.username
+    }));
+
+    const firstAssignee = itemAssignees[0];
+
     const newItem = {
       id: Date.now(), // Local key (temp)
       text: newActionText.trim(),
-      assignee_id: assigneeUser ? assigneeUser.user_id : null,
-      assignee_name: assigneeUser ? (assigneeUser.first_name || assigneeUser.last_name ? `${assigneeUser.first_name || ""} ${assigneeUser.last_name || ""}`.trim() : (assigneeUser.emailid || assigneeUser.username)) : "Unassigned",
+      assignees: itemAssignees,
+      assignee_id: firstAssignee ? firstAssignee.id : null,
+      assignee_name: firstAssignee ? firstAssignee.name : "Unassigned",
       completed: false
     };
 
     setActionItems([...actionItems, newItem]);
     setNewActionText("");
-    setNewActionAssignee("");
+    setNewActionAssignees([]);
+    setAssigneeDropdownOpen(false);
   };
 
   const removeActionItem = (itemId) => {
@@ -192,11 +210,12 @@ export default function MeetingDetailPage({ params }) {
     setActionItems(updatedActions);
 
     // Format action items for payload
-    const formattedActionItems = updatedActions.map(({ id, text, assignee_id, assignee_name, completed }) => ({
+    const formattedActionItems = updatedActions.map(({ id, text, assignee_id, assignee_name, completed, assignees }) => ({
       id,
       text,
       assignee_id,
       assignee_name,
+      assignees: assignees || (assignee_id ? [{ id: assignee_id, name: assignee_name }] : []),
       completed
     }));
 
@@ -246,11 +265,12 @@ export default function MeetingDetailPage({ params }) {
     setError("");
     setSuccess("");
 
-    const formattedActionItems = actionItems.map(({ id, text, assignee_id, assignee_name, completed }) => ({
+    const formattedActionItems = actionItems.map(({ id, text, assignee_id, assignee_name, completed, assignees }) => ({
       id,
       text,
       assignee_id,
       assignee_name,
+      assignees: assignees || (assignee_id ? [{ id: assignee_id, name: assignee_name }] : []),
       completed
     }));
 
@@ -310,7 +330,12 @@ export default function MeetingDetailPage({ params }) {
 
     const attendeeNames = meeting.attendees?.map(u => u.first_name || u.username).join(", ") || "None";
     const actionsMarkdown = actionItems.length > 0
-      ? actionItems.map(item => `- [${item.completed ? "x" : " "}] ${item.text} (Assignee: ${item.assignee_name || "Unassigned"})`).join("\n")
+      ? actionItems.map(item => {
+          const assigneesStr = item.assignees && item.assignees.length > 0
+            ? item.assignees.map(a => a.name).join(", ")
+            : item.assignee_name || "Unassigned";
+          return `- [${item.completed ? "x" : " "}] ${item.text} (Assignees: ${assigneesStr})`;
+        }).join("\n")
       : "No action items assigned.";
 
     const contextType = meeting.meeting_type === "External" ? "Client" : "Project Category";
@@ -682,23 +707,56 @@ ${actionsMarkdown}
                     className="w-full px-3.5 py-2 bg-slate-900 border border-slate-800 rounded-md text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-xs transition-all"
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                    Assignee
+                    Assignees
                   </label>
                   <div className="flex space-x-2">
-                    <select
-                      value={newActionAssignee}
-                      onChange={(e) => setNewActionAssignee(e.target.value)}
-                      className="flex-1 px-2.5 py-2 bg-slate-900 border border-slate-800 rounded-md text-white focus:outline-none focus:border-indigo-500 text-xs transition-all"
-                    >
-                      <option value="">Select...</option>
-                      {selectableUsers.map((u) => (
-                        <option key={u.user_id} value={u.user_id}>
-                          {u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative flex-1">
+                      <button
+                        type="button"
+                        onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+                        className="w-full text-left px-2.5 py-2 bg-slate-900 border border-slate-800 rounded-md text-white focus:outline-none focus:border-indigo-500 text-xs transition-all flex items-center justify-between min-h-[34px]"
+                      >
+                        <span className="truncate pr-4 block">
+                          {newActionAssignees.length === 0
+                            ? "Select Assignees..."
+                            : newActionAssignees
+                                .map(id => {
+                                  const u = users.find(user => user.user_id === id);
+                                  return u ? (u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username)) : "";
+                                })
+                                .filter(Boolean)
+                                .join(", ")}
+                        </span>
+                        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transform transition-transform duration-200 ${assigneeDropdownOpen ? "rotate-180" : ""}`} />
+                      </button>
+
+                      {assigneeDropdownOpen && (
+                        <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-950 border border-slate-800 rounded-md shadow-2xl max-h-48 overflow-y-auto p-2 space-y-1">
+                          {selectableUsers.map((u) => {
+                            const isChecked = newActionAssignees.includes(u.user_id);
+                            return (
+                              <label
+                                key={u.user_id}
+                                className="flex items-center space-x-2.5 px-2 py-1.5 hover:bg-slate-900 rounded cursor-pointer text-[11px] text-slate-300 hover:text-white transition-colors"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleAssignee(u.user_id)}
+                                  className="rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                                />
+                                <span>{u.first_name || u.last_name ? `${u.first_name || ""} ${u.last_name || ""}`.trim() : (u.emailid || u.username || "User")}</span>
+                              </label>
+                            );
+                          })}
+                          {selectableUsers.length === 0 && (
+                            <div className="text-[10px] text-slate-500 p-2 text-center">No users available</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={addActionItem}
@@ -725,7 +783,11 @@ ${actionsMarkdown}
                       <div className="space-y-0.5">
                         <p className="text-xs font-medium text-white">{item.text}</p>
                         <p className="text-[10px] text-slate-400">
-                          Assignee: <span className="text-indigo-400">{item.assignee_name}</span>
+                          Assignees: <span className="text-indigo-400">
+                            {item.assignees && item.assignees.length > 0
+                              ? item.assignees.map(a => a.name).join(", ")
+                              : item.assignee_name}
+                          </span>
                           {item.completed && <span className="ml-2 text-emerald-400 font-semibold">[Completed]</span>}
                         </p>
                       </div>
@@ -955,7 +1017,9 @@ ${actionsMarkdown}
                       </p>
                       <div className="flex items-center space-x-2 mt-1">
                         <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">
-                          Assignee: {item.assignee_name || "Unassigned"}
+                          Assignees: {item.assignees && item.assignees.length > 0
+                            ? item.assignees.map(a => a.name).join(", ")
+                            : item.assignee_name || "Unassigned"}
                         </span>
                         {item.completed && (
                           <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">

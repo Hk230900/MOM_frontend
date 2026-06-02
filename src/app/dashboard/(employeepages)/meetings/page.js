@@ -13,7 +13,9 @@ import {
   Filter, 
   ChevronRight, 
   User,
-  AlertCircle
+  AlertCircle,
+  Clock,
+  GitBranch
 } from "lucide-react";
 
 export default function MeetingsPage() {
@@ -26,7 +28,8 @@ export default function MeetingsPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     async function loadMeetingsData() {
@@ -71,11 +74,11 @@ export default function MeetingsPage() {
       !selectedProjectId || 
       (meeting.project && meeting.project.id === parseInt(selectedProjectId));
     
-    const matchesDate = 
-      !selectedDate || 
-      meeting.date === selectedDate;
+    const matchesDateRange = 
+      (!startDate || meeting.date >= startDate) &&
+      (!endDate || meeting.date <= endDate);
 
-    return matchesSearch && matchesProject && matchesDate;
+    return matchesSearch && matchesProject && matchesDateRange;
   });
 
   return (
@@ -105,7 +108,7 @@ export default function MeetingsPage() {
       )}
 
       {/* Filter panel */}
-      <div className="bg-slate-900/40 border border-slate-800 p-5 rounded-xl shadow-md backdrop-blur-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+      <div className="bg-slate-900/40 border border-slate-800 p-5 rounded-xl shadow-md backdrop-blur-sm grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
         {/* Search */}
         <div className="relative md:col-span-2">
           <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500">
@@ -142,16 +145,33 @@ export default function MeetingsPage() {
           </select>
         </div>
 
-        {/* Date Filter */}
+        {/* From Date Filter */}
         <div className="relative">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
             <Calendar className="h-4 w-4" />
           </span>
           <input
             type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all cursor-pointer"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            placeholder="From Date"
+            title="From Date"
+            className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-xs transition-all cursor-pointer"
+          />
+        </div>
+
+        {/* To Date Filter */}
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
+            <Calendar className="h-4 w-4" />
+          </span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            placeholder="To Date"
+            title="To Date"
+            className="w-full pl-9 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-xs transition-all cursor-pointer"
           />
         </div>
       </div>
@@ -187,14 +207,25 @@ export default function MeetingsPage() {
                       {meeting.project?.name || "Uncategorized"}
                     </span>
                     <span className="text-slate-500 text-xs">•</span>
-                    <span className="text-xs text-slate-400 font-medium">
-                      {meeting.date} at {formatTime(meeting.time)}
+                    <span className="text-xs text-slate-400 font-medium flex items-center space-x-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>{meeting.date}</span>
+                      <span className="text-slate-650 font-medium">•</span>
+                      <Clock className="h-3.5 w-3.5 text-indigo-400" />
+                      <span>{formatTime(meeting.time)}</span>
                     </span>
                   </div>
                   
                   <h3 className="text-base font-bold text-white group-hover:text-indigo-400 transition-colors duration-200">
                     {meeting.title}
                   </h3>
+
+                  {meeting.follow_up_to && (
+                    <div className="flex items-center space-x-1.5 text-xs text-indigo-400/90 font-medium mt-1">
+                      <GitBranch className="h-3.5 w-3.5" />
+                      <span>Follow-up to: <strong>{meeting.follow_up_to.title}</strong></span>
+                    </div>
+                  )}
 
                   {meeting.agenda && (
                     <p className="text-xs text-slate-400 truncate line-clamp-1 max-w-xl">

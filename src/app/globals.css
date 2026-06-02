@@ -90,3 +90,10 @@ body {
   animation: logoGlow 4s infinite ease-in-out;
 }
 
+/* Invert native date and time picker indicators for dark mode accessibility */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+

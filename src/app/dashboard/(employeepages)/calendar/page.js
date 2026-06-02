@@ -543,7 +543,10 @@ export default function CalendarPage() {
                             className="p-2 rounded bg-slate-950/40 border border-slate-850 flex justify-between items-center text-xs"
                           >
                             <span className="font-medium text-white truncate max-w-[150px]">{meeting.title}</span>
-                            <span className="text-slate-400 text-[10px]">{formatTime(meeting.time)}</span>
+                            <span className="text-slate-400 text-[10px] flex items-center space-x-1">
+                              <Clock className="h-3 w-3 text-indigo-400" />
+                              <span>{formatTime(meeting.time)}</span>
+                            </span>
                           </div>
                         ))
                       )}
