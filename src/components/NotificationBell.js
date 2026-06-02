@@ -58,11 +58,13 @@ export default function NotificationBell() {
     }
   };
 
-  // Filter reminders for "active today or upcoming"
-  const todayStr = new Date().toISOString().split("T")[0];
+  // Filter reminders that are currently due (i.e. scheduled date and time has been reached)
   const activeReminders = reminders.filter((r) => {
-    // Show unsent reminders or reminders set for today/future
-    return !r.is_sent || r.date >= todayStr;
+    const now = new Date();
+    const [year, month, day] = r.date.split("-").map(Number);
+    const [hour, minute] = r.time.split(":").map(Number);
+    const reminderDateTime = new Date(year, month - 1, day, hour, minute);
+    return now >= reminderDateTime;
   });
 
   const unreadCount = activeReminders.filter(r => !r.is_read).length;
