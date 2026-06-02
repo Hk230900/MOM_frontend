@@ -77,7 +77,7 @@ export default function AdminDashboard() {
         nextMeeting: nextMeetingText,
       });
 
-      setRecentMeetings(meetings.slice(0, 5));
+      setRecentMeetings(meetings.slice(0, 4));
     } catch (err) {
       console.error(err);
       setError("Could not load dashboard metrics from backend.");

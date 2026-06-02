@@ -69,6 +69,16 @@ export default function MeetingDetailPage({ params }) {
   const [newActionAssignees, setNewActionAssignees] = useState([]);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
 
+  const getTodayStr = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const todayStr = getTodayStr();
+  const isFutureOrToday = !date || date >= todayStr;
+
   const setActionItemsSafe = (items) => {
     const safeItems = (items || []).map((item, index) => ({
       id: item.id || `action-${Date.now()}-${index}-${Math.random()}`,
@@ -669,14 +679,15 @@ ${actionsMarkdown}
               {/* Minutes of Meeting */}
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                  Minutes of Meeting (MOM Content)
+                  Minutes of Meeting (MOM Content) {isFutureOrToday && <span className="text-slate-500 font-normal lowercase">(optional)</span>}
                 </label>
                 <textarea
                   value={minutes}
                   onChange={(e) => setMinutes(e.target.value)}
+                  placeholder={isFutureOrToday ? "Optional for future or upcoming meetings..." : "Detailed logs of discussions, conclusions, and key points..."}
                   rows="10"
                   className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm transition-all font-mono"
-                  required
+                  required={!isFutureOrToday}
                 />
               </div>
             </div>

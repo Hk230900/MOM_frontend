@@ -13,7 +13,8 @@ import {
   ArrowRight, 
   Plus, 
   TrendingUp, 
-  Calendar
+  Calendar,
+  X
 } from "lucide-react";
 
 export default function EmployeeDashboard() {
@@ -24,6 +25,9 @@ export default function EmployeeDashboard() {
     nextMeeting: "No upcoming meetings",
   });
   const [recentMeetings, setRecentMeetings] = useState([]);
+  const [allMeetings, setAllMeetings] = useState([]);
+  const [showTasksModal, setShowTasksModal] = useState(false);
+  const [checkingTaskId, setCheckingTaskId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -87,7 +91,8 @@ export default function EmployeeDashboard() {
         nextMeeting: nextMeetingText,
       });
 
-      setRecentMeetings(myMeetings.slice(0, 5));
+      setAllMeetings(meetings);
+      setRecentMeetings(myMeetings.slice(0, 4));
     } catch (err) {
       console.error(err);
       setError("Could not load dashboard metrics from backend.");
@@ -95,6 +100,69 @@ export default function EmployeeDashboard() {
       setLoading(false);
     }
   }
+
+  const handleToggleTask = async (meetingId, taskId) => {
+    const currentUsername = api.getUsername();
+    const meeting = allMeetings.find(m => m.id === meetingId);
+    if (!meeting) return;
+
+    setCheckingTaskId(taskId);
+
+    const updatedActionItems = meeting.action_items.map(item => {
+      if (item.id === taskId) {
+        return { ...item, completed: !item.completed };
+      }
+      return item;
+    });
+
+    const updatedMeetings = allMeetings.map(m => {
+      if (m.id === meetingId) {
+        return { ...m, action_items: updatedActionItems };
+      }
+      return m;
+    });
+    setAllMeetings(updatedMeetings);
+
+    let myOpenActionsCount = 0;
+    updatedMeetings.forEach(m => {
+      if (m.action_items && Array.isArray(m.action_items)) {
+        m.action_items.forEach(item => {
+          const isAssignedToMe = item.assignees && Array.isArray(item.assignees)
+            ? item.assignees.some(assignee => assignee.email === currentUsername || assignee.name === currentUsername)
+            : item.assignee_name === currentUsername;
+          if (isAssignedToMe && !item.completed) {
+            myOpenActionsCount++;
+          }
+        });
+      }
+    });
+    setStats(prev => ({ ...prev, myActionItemsCount: myOpenActionsCount }));
+
+    try {
+      const meetingsUrl = process.env.NEXT_PUBLIC_MEETINGS || "http://localhost:8000/api/meetings/";
+      const payload = {
+        meeting_type: meeting.meeting_type,
+        project: meeting.project?.id || null,
+        client: meeting.client?.id || null,
+        title: meeting.title,
+        date: meeting.date,
+        time: meeting.time,
+        organizer: meeting.organizer?.id,
+        attendees: meeting.attendees?.map(a => a.id) || [],
+        agenda: meeting.agenda || "",
+        minutes: meeting.minutes || "",
+        action_items: updatedActionItems,
+        follow_up_to: meeting.follow_up_to?.id || null
+      };
+
+      await api.put(`${meetingsUrl}${meetingId}/`, payload);
+    } catch (err) {
+      console.error("Failed to sync task update with backend:", err);
+      loadDashboardData();
+    } finally {
+      setCheckingTaskId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -108,6 +176,26 @@ export default function EmployeeDashboard() {
       </SidebarLayout>
     );
   }
+
+  const currentUsername = api.getUsername();
+  const myPendingTasks = [];
+  allMeetings.forEach(meeting => {
+    if (meeting.action_items && Array.isArray(meeting.action_items)) {
+      meeting.action_items.forEach(item => {
+        const isAssignedToMe = item.assignees && Array.isArray(item.assignees)
+          ? item.assignees.some(assignee => assignee.email === currentUsername || assignee.name === currentUsername)
+          : item.assignee_name === currentUsername;
+        
+        if (isAssignedToMe && !item.completed) {
+          myPendingTasks.push({
+            meetingId: meeting.id,
+            meetingTitle: meeting.title,
+            task: item
+          });
+        }
+      });
+    }
+  });
 
   return (
     <SidebarLayout>
@@ -146,7 +234,11 @@ export default function EmployeeDashboard() {
           </div>
         </div>
 
-        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl shadow-xl flex items-center space-x-5 backdrop-blur-md">
+        <div 
+          onClick={() => setShowTasksModal(true)}
+          className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl shadow-xl flex items-center space-x-5 backdrop-blur-md cursor-pointer hover:bg-slate-900/80 hover:border-amber-500/30 transition-all duration-200"
+          title="Click to view pending action items"
+        >
           <div className="h-12 w-12 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
             <CheckSquare className="h-6 w-6" />
           </div>
@@ -281,6 +373,86 @@ export default function EmployeeDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Pending Tasks Modal */}
+      {showTasksModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl relative animate-scale-up mx-4 flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-850 mb-4 flex-shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <CheckSquare className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">My Pending Actions</h3>
+                  <p className="text-slate-400 text-xs mt-0.5">Toggle checkboxes to check off tasks in real-time.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTasksModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-850 hover:text-white transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {myPendingTasks.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <CheckSquare className="h-12 w-12 mx-auto text-slate-600 mb-3" />
+                  <p className="text-sm font-semibold text-white">All caught up!</p>
+                  <p className="text-xs text-slate-400 mt-1">You have no pending action items assigned.</p>
+                </div>
+              ) : (
+                myPendingTasks.map(({ meetingId, meetingTitle, task }) => (
+                  <div
+                    key={`${meetingId}-${task.id}`}
+                    className="flex items-start space-x-3.5 p-4 rounded-xl border bg-slate-950/40 border-slate-850 hover:border-slate-800 transition-all text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={task.completed}
+                      disabled={checkingTaskId === task.id}
+                      onChange={() => handleToggleTask(meetingId, task.id)}
+                      className="mt-0.5 rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer disabled:opacity-50"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-relaxed text-slate-100">
+                        {task.text}
+                      </p>
+                      <div className="flex items-center space-x-1.5 mt-1.5 text-[10px] text-slate-400">
+                        <span>Meeting:</span>
+                        <Link
+                          href={`/dashboard/meetings/${meetingId}`}
+                          onClick={() => setShowTasksModal(false)}
+                          className="text-indigo-400 hover:text-indigo-350 hover:underline font-semibold truncate max-w-[280px]"
+                        >
+                          {meetingTitle}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end pt-4 border-t border-slate-850 mt-4 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowTasksModal(false)}
+                className="px-5 py-2 bg-slate-950/80 border border-slate-800 hover:bg-slate-900 text-slate-300 rounded-lg text-sm font-semibold transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SidebarLayout>
   );
 }
