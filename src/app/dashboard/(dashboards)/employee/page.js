@@ -28,6 +28,8 @@ export default function EmployeeDashboard() {
   const [allMeetings, setAllMeetings] = useState([]);
   const [showTasksModal, setShowTasksModal] = useState(false);
   const [checkingTaskId, setCheckingTaskId] = useState(null);
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+  const [showMeetingsModal, setShowMeetingsModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -80,9 +82,10 @@ export default function EmployeeDashboard() {
         .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`));
 
       let nextMeetingText = "No upcoming meetings";
-      if (upcoming.length > 0) {
-        const next = upcoming[0];
-        nextMeetingText = `${next.title} on ${next.date}`;
+      if (upcoming.length === 1) {
+        nextMeetingText = "1 Upcoming Meeting";
+      } else if (upcoming.length > 1) {
+        nextMeetingText = `${upcoming.length} Upcoming Meetings`;
       }
 
       setStats({
@@ -91,6 +94,7 @@ export default function EmployeeDashboard() {
         nextMeeting: nextMeetingText,
       });
 
+      setUpcomingMeetings(upcoming);
       setAllMeetings(meetings);
       setRecentMeetings(myMeetings.slice(0, 4));
     } catch (err) {
@@ -248,7 +252,15 @@ export default function EmployeeDashboard() {
           </div>
         </div>
 
-        <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-xl shadow-xl flex items-center space-x-5 backdrop-blur-md">
+        <div 
+          onClick={() => upcomingMeetings.length > 0 && setShowMeetingsModal(true)}
+          className={`bg-slate-900/50 border border-slate-800 p-6 rounded-xl shadow-xl flex items-center space-x-5 backdrop-blur-md transition-all duration-200 ${
+            upcomingMeetings.length > 0 
+              ? "cursor-pointer hover:bg-slate-900/80 hover:border-purple-500/30 active:scale-[0.98]" 
+              : ""
+          }`}
+          title={upcomingMeetings.length > 0 ? "Click to view upcoming meetings" : ""}
+        >
           <div className="h-12 w-12 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
             <Clock className="h-6 w-6" />
           </div>
@@ -445,6 +457,97 @@ export default function EmployeeDashboard() {
               <button
                 type="button"
                 onClick={() => setShowTasksModal(false)}
+                className="px-5 py-2 bg-slate-950/80 border border-slate-800 hover:bg-slate-900 text-slate-300 rounded-lg text-sm font-semibold transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Meetings Modal */}
+      {showMeetingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl relative animate-scale-up mx-4 flex flex-col max-h-[85vh]">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-850 mb-4 flex-shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="h-10 w-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                  <Clock className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-lg">Upcoming Meetings</h3>
+                  <p className="text-slate-400 text-xs mt-0.5">Scheduled meetings starting from today.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowMeetingsModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-850 hover:text-white transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {upcomingMeetings.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <Calendar className="h-12 w-12 mx-auto text-slate-600 mb-3" />
+                  <p className="text-sm font-semibold text-white">No upcoming meetings</p>
+                  <p className="text-xs text-slate-400 mt-1">There are no future meetings scheduled.</p>
+                </div>
+              ) : (
+                upcomingMeetings.map((meeting) => (
+                  <div
+                    key={meeting.id}
+                    className="flex flex-col p-4 rounded-xl border bg-slate-950/40 border-slate-850 hover:border-slate-800 transition-all text-white space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between space-x-2">
+                      <div className="min-w-0">
+                        <span className="inline-block text-[9px] uppercase font-bold text-indigo-400 tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20 mb-1">
+                          {meeting.project?.name || "Uncategorized"}
+                        </span>
+                        <h4 className="text-sm font-bold text-white leading-snug truncate">
+                          {meeting.title}
+                        </h4>
+                      </div>
+                      <Link
+                        href={`/dashboard/meetings/${meeting.id}`}
+                        onClick={() => setShowMeetingsModal(false)}
+                        className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-md transition-colors duration-155 flex-shrink-0"
+                      >
+                        Go to MOM
+                      </Link>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-450 border-t border-slate-850/60 pt-2">
+                      <span className="flex items-center space-x-1">
+                        <Calendar className="h-3.5 w-3.5 text-purple-400" />
+                        <span className="text-slate-300">{meeting.date}</span>
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="flex items-center space-x-1">
+                        <Clock className="h-3.5 w-3.5 text-purple-400" />
+                        <span className="text-slate-300">{formatTime(meeting.time)}</span>
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="truncate max-w-[150px]">
+                        Organizer: <span className="text-slate-300 font-medium">{meeting.organizer?.username}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end pt-4 border-t border-slate-850 mt-4 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowMeetingsModal(false)}
                 className="px-5 py-2 bg-slate-950/80 border border-slate-800 hover:bg-slate-900 text-slate-300 rounded-lg text-sm font-semibold transition-all cursor-pointer"
               >
                 Close
