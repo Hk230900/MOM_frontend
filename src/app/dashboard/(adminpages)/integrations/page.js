@@ -89,7 +89,15 @@ export default function IntegrationsPage() {
     if (maxRows > 1) {
       var mergedRanges = sheet.getRange(2, 1, maxRows - 1, 4).getMergedRanges();
       for (var m = 0; m < mergedRanges.length; m++) {
-        mergedRanges[m].breakApart();
+        var r = mergedRanges[m];
+        var startRow = r.getRow();
+        var startCol = r.getColumn();
+        var numRows = r.getNumRows();
+        var numCols = r.getNumColumns();
+        var val = r.getCell(1, 1).getValue();
+        
+        r.breakApart();
+        sheet.getRange(startRow, startCol, numRows, numCols).setValue(val);
       }
     }
     
