@@ -84,10 +84,13 @@ export default function IntegrationsPage() {
     
     var meetingId = data.meeting_id;
     
-    // 1. Unmerge columns A-D (1 to 4) before clearing/sorting to prevent Sheets errors
-    var lastRowBefore = sheet.getLastRow();
-    if (lastRowBefore > 1) {
-      sheet.getRange(2, 1, lastRowBefore - 1, 4).breakApart();
+    // 1. Unmerge all merged ranges in columns A-D (1 to 4) before clearing/sorting to prevent Sheets errors
+    var mergedRanges = sheet.getMergedRanges();
+    for (var m = 0; m < mergedRanges.length; m++) {
+      var r = mergedRanges[m];
+      if (r.getRow() >= 2 && r.getColumn() <= 4) {
+        r.breakApart();
+      }
     }
     
     // 2. Clear out previous rows for this meeting ID (G is Column 7)
@@ -144,11 +147,15 @@ export default function IntegrationsPage() {
       sheet.appendRow(rowsToAdd[k]);
     }
     
-    // 4. Sort chronologically by Date (Column A) and Merge matching rows
+    // 4. Sort chronologically by Date (Column A), then Meeting ID, then Task Index
     var lastRowAfter = sheet.getLastRow();
     if (lastRowAfter > 1) {
-      // Sort range: rows 2 to lastRow, columns 1 to 8, sorted by Column A (Date) ascending
-      sheet.getRange(2, 1, lastRowAfter - 1, 8).sort({column: 1, ascending: true});
+      // Sort range: rows 2 to lastRow, columns 1 to 8
+      sheet.getRange(2, 1, lastRowAfter - 1, 8).sort([
+        {column: 1, ascending: true},
+        {column: 7, ascending: true},
+        {column: 8, ascending: true}
+      ]);
       
       // Re-merge vertically for duplicate meeting details (Columns A-D)
       var values = sheet.getRange(2, 7, lastRowAfter - 1, 1).getValues();
