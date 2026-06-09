@@ -75,19 +75,24 @@ export default function IntegrationsPage() {
     
     var meetingId = data.meeting_id;
     
-    // 1. Clear out previous rows for this meeting ID (G is Column 7)
+    // 1. Unmerge columns A-D (1 to 4) before clearing/sorting to prevent Sheets errors
+    var lastRowBefore = sheet.getLastRow();
+    if (lastRowBefore > 1) {
+      sheet.getRange(2, 1, lastRowBefore - 1, 4).breakApart();
+    }
+    
+    // 2. Clear out previous rows for this meeting ID (G is Column 7)
     var lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       var meetingIds = sheet.getRange(2, 7, lastRow - 1, 1).getValues();
       for (var i = meetingIds.length - 1; i >= 0; i--) {
         if (meetingIds[i][0] == meetingId) {
-          sheet.deleteRow(i + 2); // +2 because 0-indexed and accounts for header
+          sheet.deleteRow(i + 2); // +2 because of 0-indexed array + header row
         }
       }
     }
     
-    // 2. Format and write new rows
-    var startRow = sheet.getLastRow() + 1;
+    // 3. Format and write new rows
     var rowsToAdd = [];
     var actionItems = data.action_items || [];
     
@@ -99,7 +104,7 @@ export default function IntegrationsPage() {
         data.title,
         data.mom_details,
         "", // Assigned Task
-        "", // Per task status
+        "Pending", // Default status is Pending
         meetingId,
         -1  // Task Index helper
       ]);
@@ -130,19 +135,76 @@ export default function IntegrationsPage() {
       sheet.appendRow(rowsToAdd[k]);
     }
     
-    // Merge repeated cells vertically for the newly appended rows
-    var M = rowsToAdd.length;
-    if (M > 1) {
-      sheet.getRange(startRow, 1, M, 1).mergeVertically();
-      sheet.getRange(startRow, 2, M, 1).mergeVertically();
-      sheet.getRange(startRow, 3, M, 1).mergeVertically();
-      sheet.getRange(startRow, 4, M, 1).mergeVertically();
+    // 4. Sort chronologically by Date (Column A) and Merge matching rows
+    var lastRowAfter = sheet.getLastRow();
+    if (lastRowAfter > 1) {
+      // Sort range: rows 2 to lastRow, columns 1 to 8, sorted by Column A (Date) ascending
+      sheet.getRange(2, 1, lastRowAfter - 1, 8).sort({column: 1, ascending: true});
       
-      // Apply center alignment vertically for merged cells
-      sheet.getRange(startRow, 1, M, 4).setVerticalAlignment("middle");
+      // Re-merge vertically for duplicate meeting details (Columns A-D)
+      var values = sheet.getRange(2, 7, lastRowAfter - 1, 1).getValues();
+      var startRow = 2;
+      var currentMeetingId = values[0][0];
+      var runLength = 1;
+      
+      for (var r = 1; r < values.length; r++) {
+        var rowMeetingId = values[r][0];
+        if (rowMeetingId === currentMeetingId && rowMeetingId !== "") {
+          runLength++;
+        } else {
+          if (runLength > 1) {
+            sheet.getRange(startRow, 1, runLength, 1).mergeVertically();
+            sheet.getRange(startRow, 2, runLength, 1).mergeVertically();
+            sheet.getRange(startRow, 3, runLength, 1).mergeVertically();
+            sheet.getRange(startRow, 4, runLength, 1).mergeVertically();
+          }
+          startRow = r + 2; // +2 for 0-index offset + header row
+          currentMeetingId = rowMeetingId;
+          runLength = 1;
+        }
+      }
+      // Merge the final group
+      if (runLength > 1) {
+        sheet.getRange(startRow, 1, runLength, 1).mergeVertically();
+        sheet.getRange(startRow, 2, runLength, 1).mergeVertically();
+        sheet.getRange(startRow, 3, runLength, 1).mergeVertically();
+        sheet.getRange(startRow, 4, runLength, 1).mergeVertically();
+      }
+      
+      // Center-align vertically all cells in columns A-D
+      sheet.getRange(2, 1, lastRowAfter - 1, 4).setVerticalAlignment("middle");
+      
+      // 5. Configure dropdown validation to Column F (Per task status)
+      var validationRule = SpreadsheetApp.newDataValidation()
+        .requireValueInList(["Completed", "Pending"], true)
+        .setAllowInvalid(false)
+        .build();
+      sheet.getRange(2, 6, lastRowAfter - 1, 1).setDataValidation(validationRule);
+      
+      // 6. Apply conditional formatting rules (Green for Completed, Yellow for Pending)
+      sheet.clearConditionalFormatRules();
+      
+      var completedRule = SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo("Completed")
+        .setBackground("#D1FAE5") // Light Green
+        .setFontColor("#065F46")  // Dark Green Text
+        .setRanges([sheet.getRange("F2:F")])
+        .build();
+        
+      var pendingRule = SpreadsheetApp.newConditionalFormatRule()
+        .whenTextEqualTo("Pending")
+        .setBackground("#FEF3C7") // Light Yellow
+        .setFontColor("#92400E")  // Dark Yellow Text
+        .setRanges([sheet.getRange("F2:F")])
+        .build();
+        
+      var rules = sheet.getConditionalFormatRules();
+      rules.push(completedRule);
+      rules.push(pendingRule);
+      sheet.setConditionalFormatRules(rules);
     }
     
-    // Auto-hide helper columns G (7) and H (8) from the user
+    // 7. Auto-hide helper columns G (7) and H (8) from user view
     sheet.hideColumns(7, 2);
     
     return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "MOM Sync Successful" }))
