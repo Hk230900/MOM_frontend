@@ -87,6 +87,7 @@ export default function IntegrationsPage() {
     }
     
     // 2. Format and write new rows
+    var startRow = sheet.getLastRow() + 1;
     var rowsToAdd = [];
     var actionItems = data.action_items || [];
     
@@ -128,6 +129,21 @@ export default function IntegrationsPage() {
     for (var k = 0; k < rowsToAdd.length; k++) {
       sheet.appendRow(rowsToAdd[k]);
     }
+    
+    // Merge repeated cells vertically for the newly appended rows
+    var M = rowsToAdd.length;
+    if (M > 1) {
+      sheet.getRange(startRow, 1, M, 1).mergeVertically();
+      sheet.getRange(startRow, 2, M, 1).mergeVertically();
+      sheet.getRange(startRow, 3, M, 1).mergeVertically();
+      sheet.getRange(startRow, 4, M, 1).mergeVertically();
+      
+      // Apply center alignment vertically for merged cells
+      sheet.getRange(startRow, 1, M, 4).setVerticalAlignment("middle");
+    }
+    
+    // Auto-hide helper columns G (7) and H (8) from the user
+    sheet.hideColumns(7, 2);
     
     return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "MOM Sync Successful" }))
                          .setMimeType(ContentService.MimeType.JSON);
