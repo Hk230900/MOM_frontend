@@ -85,11 +85,11 @@ export default function IntegrationsPage() {
     var meetingId = data.meeting_id;
     
     // 1. Unmerge all merged ranges in columns A-D (1 to 4) before clearing/sorting to prevent Sheets errors
-    var mergedRanges = sheet.getMergedRanges();
-    for (var m = 0; m < mergedRanges.length; m++) {
-      var r = mergedRanges[m];
-      if (r.getRow() >= 2 && r.getColumn() <= 4) {
-        r.breakApart();
+    var maxRows = sheet.getMaxRows();
+    if (maxRows > 1) {
+      var mergedRanges = sheet.getRange(2, 1, maxRows - 1, 4).getMergedRanges();
+      for (var m = 0; m < mergedRanges.length; m++) {
+        mergedRanges[m].breakApart();
       }
     }
     
