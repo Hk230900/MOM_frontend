@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Calendar,
   Handshake,
+  Cable,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import NotificationBell from "./NotificationBell";
@@ -117,7 +118,8 @@ export default function SidebarLayout({ children }) {
       { name: "Clients", href: "/dashboard/clients", icon: Handshake },
       { name: "Meetings", href: "/dashboard/meetings", icon: FileText },
       { name: "New Meeting", href: "/dashboard/meetings/new", icon: PlusCircle },
-      { name: "Users", href: "/dashboard/users", icon: Users }
+      { name: "Users", href: "/dashboard/users", icon: Users },
+      { name: "Integrations", href: "/dashboard/integrations", icon: Cable }
     );
   } else {
     navItems.push(
