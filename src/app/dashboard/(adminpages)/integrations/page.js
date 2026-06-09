@@ -55,6 +55,15 @@ export default function IntegrationsPage() {
 
   // Google Apps Script source code snippet
   const appsScriptCode = `function doPost(e) {
+  var lock = LockService.getScriptLock();
+  try {
+    // Wait up to 30 seconds for any running syncs to finish
+    lock.waitLock(30000);
+  } catch (lockError) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Timeout waiting for script lock: " + lockError.toString() }))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+  
   try {
     var data = JSON.parse(e.postData.contents);
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -207,9 +216,14 @@ export default function IntegrationsPage() {
     // 7. Auto-hide helper columns G (7) and H (8) from user view
     sheet.hideColumns(7, 2);
     
+    // Release the script lock
+    lock.releaseLock();
+    
     return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "MOM Sync Successful" }))
                          .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
+    // Release the lock in case of errors too
+    lock.releaseLock();
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
                          .setMimeType(ContentService.MimeType.JSON);
   }
