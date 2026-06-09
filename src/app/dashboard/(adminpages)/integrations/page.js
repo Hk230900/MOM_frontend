@@ -150,6 +150,12 @@ export default function IntegrationsPage() {
     // 4. Sort chronologically by Date (Column A), then Meeting ID, then Task Index
     var lastRowAfter = sheet.getLastRow();
     if (lastRowAfter > 1) {
+      // Force Column A (1) to be formatted as YYYY-MM-DD
+      sheet.getRange(2, 1, lastRowAfter - 1, 1).setNumberFormat("yyyy-mm-dd");
+      
+      // Force Columns G and H (7 and 8) to be formatted as numbers to prevent Sheets from parsing them as Date serials
+      sheet.getRange(2, 7, lastRowAfter - 1, 2).setNumberFormat("0");
+      
       // Sort range: rows 2 to lastRow, columns 1 to 8
       sheet.getRange(2, 1, lastRowAfter - 1, 8).sort([
         {column: 1, ascending: true},
@@ -165,7 +171,10 @@ export default function IntegrationsPage() {
       
       for (var r = 1; r < values.length; r++) {
         var rowMeetingId = values[r][0];
-        if (rowMeetingId === currentMeetingId && rowMeetingId !== "") {
+        var rowMeetingIdStr = rowMeetingId !== null && rowMeetingId !== undefined ? String(rowMeetingId).trim() : "";
+        var currentMeetingIdStr = currentMeetingId !== null && currentMeetingId !== undefined ? String(currentMeetingId).trim() : "";
+        
+        if (rowMeetingIdStr === currentMeetingIdStr && rowMeetingIdStr !== "") {
           runLength++;
         } else {
           if (runLength > 1) {
