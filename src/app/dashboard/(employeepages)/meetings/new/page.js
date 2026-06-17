@@ -322,9 +322,16 @@ function NewMeetingForm() {
     selectableOrganizers = users.filter(u => u.organization === userOrg && u.emailid !== 'harshadabk2309@gmail.com');
   }
 
-  // Filter meetings for follow-ups
+  // Filter meetings for follow-ups (only show meetings for the selected project/client)
   const filteredMeetings = meetings.filter(m => {
-    return isMasterAdmin || !m.project || m.project.organization === userOrg;
+    const isAllowedOrg = isMasterAdmin || !m.project || m.project.organization === userOrg;
+    if (!isAllowedOrg) return false;
+
+    if (meetingType === "Internal") {
+      return projectId && m.project && m.project.id === parseInt(projectId);
+    } else {
+      return clientId && m.client && m.client.id === parseInt(clientId);
+    }
   });
 
   return (
@@ -373,7 +380,10 @@ function NewMeetingForm() {
               <div className="grid grid-cols-2 gap-4">
                 <button
                   type="button"
-                  onClick={() => setMeetingType("Internal")}
+                  onClick={() => {
+                    setMeetingType("Internal");
+                    setFollowUpToId("");
+                  }}
                   className={`py-3 px-4 rounded-xl border flex items-center justify-center space-x-2 font-bold text-sm transition-all duration-200 ${
                     meetingType === "Internal"
                       ? "bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/5"
@@ -385,7 +395,10 @@ function NewMeetingForm() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMeetingType("External")}
+                  onClick={() => {
+                    setMeetingType("External");
+                    setFollowUpToId("");
+                  }}
                   className={`py-3 px-4 rounded-xl border flex items-center justify-center space-x-2 font-bold text-sm transition-all duration-200 ${
                     meetingType === "External"
                       ? "bg-emerald-600/10 border-emerald-500 text-emerald-400 shadow-md shadow-emerald-500/5"
@@ -413,7 +426,10 @@ function NewMeetingForm() {
                   ) : (
                     <select
                       value={projectId}
-                      onChange={(e) => setProjectId(e.target.value)}
+                      onChange={(e) => {
+                        setProjectId(e.target.value);
+                        setFollowUpToId("");
+                      }}
                       className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm transition-all"
                       required
                     >
@@ -438,7 +454,10 @@ function NewMeetingForm() {
                   ) : (
                     <select
                       value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
+                      onChange={(e) => {
+                        setClientId(e.target.value);
+                        setFollowUpToId("");
+                      }}
                       className="w-full px-4 py-2.5 bg-slate-950/60 border border-slate-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-sm transition-all"
                       required
                     >
